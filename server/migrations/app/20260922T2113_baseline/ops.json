@@ -1,0 +1,703 @@
+[
+  {
+    "id": "schema.public",
+    "label": "Create schema \"public\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres"
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "Create schema \"public\"",
+        "sql": "CREATE SCHEMA IF NOT EXISTS \"public\"",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.board",
+    "label": "Create table \"board\"",
+    "summary": "Creates table \"board\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "board"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"board\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"board\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"board\"",
+        "sql": "CREATE TABLE \"public\".\"board\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"name\" text NOT NULL,\n  \"ownerId\" int4 NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"board\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"board\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.boardColumn",
+    "label": "Create table \"boardColumn\"",
+    "summary": "Creates table \"boardColumn\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "boardColumn"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"boardColumn\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"boardColumn\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"boardColumn\"",
+        "sql": "CREATE TABLE \"public\".\"boardColumn\" (\n  \"boardId\" int4 NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"name\" text NOT NULL,\n  \"position\" int4 NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"boardColumn\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"boardColumn\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.boardMember",
+    "label": "Create table \"boardMember\"",
+    "summary": "Creates table \"boardMember\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "boardMember"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"boardMember\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"boardMember\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"boardMember\"",
+        "sql": "CREATE TABLE \"public\".\"boardMember\" (\n  \"boardId\" int4 NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"userId\" int4 NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"boardMember\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"boardMember\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.card",
+    "label": "Create table \"card\"",
+    "summary": "Creates table \"card\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "card"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"card\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"card\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"card\"",
+        "sql": "CREATE TABLE \"public\".\"card\" (\n  \"columnId\" int4 NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"description\" text,\n  \"id\" SERIAL NOT NULL,\n  \"position\" int4 NOT NULL,\n  \"title\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"card\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"card\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.user",
+    "label": "Create table \"user\"",
+    "summary": "Creates table \"user\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "user"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"user\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"user\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"user\"",
+        "sql": "CREATE TABLE \"public\".\"user\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"email\" text NOT NULL,\n  \"id\" SERIAL NOT NULL,\n  \"name\" text,\n  \"passwordHash\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  \"username\" text,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"user\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"user\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.user.user_email_key",
+    "label": "Add unique constraint on \"user\" (email)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "user_email_key",
+        "table": "user"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"user_email_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "user_email_key",
+          "public",
+          "\"public\".\"user\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"user_email_key\"",
+        "sql": "ALTER TABLE \"public\".\"user\" ADD CONSTRAINT \"user_email_key\" UNIQUE (\"email\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"user_email_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "user_email_key",
+          "public",
+          "\"public\".\"user\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.user.user_username_key",
+    "label": "Add unique constraint on \"user\" (username)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "user_username_key",
+        "table": "user"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"user_username_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "user_username_key",
+          "public",
+          "\"public\".\"user\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"user_username_key\"",
+        "sql": "ALTER TABLE \"public\".\"user\" ADD CONSTRAINT \"user_username_key\" UNIQUE (\"username\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"user_username_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "user_username_key",
+          "public",
+          "\"public\".\"user\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.board.board_ownerId_idx_e2d0c1ef",
+    "label": "Create index \"board_ownerId_idx_e2d0c1ef\" on \"board\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "board_ownerId_idx_e2d0c1ef",
+        "table": "board"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"board_ownerId_idx_e2d0c1ef\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"board_ownerId_idx_e2d0c1ef\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"board_ownerId_idx_e2d0c1ef\"",
+        "sql": "CREATE INDEX \"board_ownerId_idx_e2d0c1ef\" ON \"public\".\"board\" (\"ownerId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"board_ownerId_idx_e2d0c1ef\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"board_ownerId_idx_e2d0c1ef\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.boardColumn.boardColumn_boardId_idx_74a7b59d",
+    "label": "Create index \"boardColumn_boardId_idx_74a7b59d\" on \"boardColumn\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "boardColumn_boardId_idx_74a7b59d",
+        "table": "boardColumn"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"boardColumn_boardId_idx_74a7b59d\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"boardColumn_boardId_idx_74a7b59d\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"boardColumn_boardId_idx_74a7b59d\"",
+        "sql": "CREATE INDEX \"boardColumn_boardId_idx_74a7b59d\" ON \"public\".\"boardColumn\" (\"boardId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"boardColumn_boardId_idx_74a7b59d\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"boardColumn_boardId_idx_74a7b59d\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.boardMember.boardMember_boardId_idx_74a7b59d",
+    "label": "Create index \"boardMember_boardId_idx_74a7b59d\" on \"boardMember\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "boardMember_boardId_idx_74a7b59d",
+        "table": "boardMember"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"boardMember_boardId_idx_74a7b59d\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"boardMember_boardId_idx_74a7b59d\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"boardMember_boardId_idx_74a7b59d\"",
+        "sql": "CREATE INDEX \"boardMember_boardId_idx_74a7b59d\" ON \"public\".\"boardMember\" (\"boardId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"boardMember_boardId_idx_74a7b59d\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"boardMember_boardId_idx_74a7b59d\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.boardMember.boardMember_userId_idx_a489d58a",
+    "label": "Create index \"boardMember_userId_idx_a489d58a\" on \"boardMember\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "boardMember_userId_idx_a489d58a",
+        "table": "boardMember"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"boardMember_userId_idx_a489d58a\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"boardMember_userId_idx_a489d58a\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"boardMember_userId_idx_a489d58a\"",
+        "sql": "CREATE INDEX \"boardMember_userId_idx_a489d58a\" ON \"public\".\"boardMember\" (\"userId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"boardMember_userId_idx_a489d58a\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"boardMember_userId_idx_a489d58a\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.card.card_columnId_idx_728f084b",
+    "label": "Create index \"card_columnId_idx_728f084b\" on \"card\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "card_columnId_idx_728f084b",
+        "table": "card"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"card_columnId_idx_728f084b\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"card_columnId_idx_728f084b\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"card_columnId_idx_728f084b\"",
+        "sql": "CREATE INDEX \"card_columnId_idx_728f084b\" ON \"public\".\"card\" (\"columnId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"card_columnId_idx_728f084b\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"card_columnId_idx_728f084b\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.board.board_ownerId_fkey",
+    "label": "Add foreign key \"board_ownerId_fkey\" on \"board\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "board_ownerId_fkey",
+        "table": "board"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"board_ownerId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "board_ownerId_fkey",
+          "public",
+          "\"public\".\"board\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"board_ownerId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"board\"\nADD CONSTRAINT \"board_ownerId_fkey\"\nFOREIGN KEY (\"ownerId\")\nREFERENCES \"public\".\"user\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"board_ownerId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "board_ownerId_fkey",
+          "public",
+          "\"public\".\"board\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.boardColumn.boardColumn_boardId_fkey",
+    "label": "Add foreign key \"boardColumn_boardId_fkey\" on \"boardColumn\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "boardColumn_boardId_fkey",
+        "table": "boardColumn"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"boardColumn_boardId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "boardColumn_boardId_fkey",
+          "public",
+          "\"public\".\"boardColumn\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"boardColumn_boardId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"boardColumn\"\nADD CONSTRAINT \"boardColumn_boardId_fkey\"\nFOREIGN KEY (\"boardId\")\nREFERENCES \"public\".\"board\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"boardColumn_boardId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "boardColumn_boardId_fkey",
+          "public",
+          "\"public\".\"boardColumn\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.boardMember.boardMember_userId_fkey",
+    "label": "Add foreign key \"boardMember_userId_fkey\" on \"boardMember\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "boardMember_userId_fkey",
+        "table": "boardMember"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"boardMember_userId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "boardMember_userId_fkey",
+          "public",
+          "\"public\".\"boardMember\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"boardMember_userId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"boardMember\"\nADD CONSTRAINT \"boardMember_userId_fkey\"\nFOREIGN KEY (\"userId\")\nREFERENCES \"public\".\"user\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"boardMember_userId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "boardMember_userId_fkey",
+          "public",
+          "\"public\".\"boardMember\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.boardMember.boardMember_boardId_fkey",
+    "label": "Add foreign key \"boardMember_boardId_fkey\" on \"boardMember\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "boardMember_boardId_fkey",
+        "table": "boardMember"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"boardMember_boardId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "boardMember_boardId_fkey",
+          "public",
+          "\"public\".\"boardMember\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"boardMember_boardId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"boardMember\"\nADD CONSTRAINT \"boardMember_boardId_fkey\"\nFOREIGN KEY (\"boardId\")\nREFERENCES \"public\".\"board\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"boardMember_boardId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "boardMember_boardId_fkey",
+          "public",
+          "\"public\".\"boardMember\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.card.card_columnId_fkey",
+    "label": "Add foreign key \"card_columnId_fkey\" on \"card\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "card_columnId_fkey",
+        "table": "card"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"card_columnId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "card_columnId_fkey",
+          "public",
+          "\"public\".\"card\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"card_columnId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"card\"\nADD CONSTRAINT \"card_columnId_fkey\"\nFOREIGN KEY (\"columnId\")\nREFERENCES \"public\".\"boardColumn\" (\"id\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"card_columnId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "card_columnId_fkey",
+          "public",
+          "\"public\".\"card\""
+        ]
+      }
+    ]
+  }
+]

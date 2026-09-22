@@ -1,0 +1,83 @@
+// use prisma-8
+
+enum BoardMemberRole {
+  @@type("pg/text@1")
+
+  ADMIN  = "admin"
+  MEMBER = "member"
+}
+
+enum CardPriority {
+  @@type("pg/text@1")
+
+  LOW    = "low"
+  MEDIUM = "medium"
+  HIGH   = "high"
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  username     String?  @unique
+  name         String?
+  passwordHash String
+
+  boards       Board[]
+  boardMemberships  BoardMember[]
+  assignedCards  Card[]            @relation("CardAssignee")
+
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+}
+
+model Board {
+  id            Int               @id @default(autoincrement())
+  name          String
+  owner         User              @relation(fields: [ownerId], references: [id])
+  ownerId       Int
+  members       BoardMember[]
+  columns       BoardColumn[]
+  createdAt     TimestamptzString @default(now())
+  updatedAt     temporal.updatedAtString()
+}
+
+model BoardMember {
+  id           Int   @id @default(autoincrement())
+  role         BoardMemberRole @default(MEMBER)
+
+  user         User  @relation(fields: [userId], references: [id])
+  userId       Int
+
+  board        Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId      Int
+  @@unique([userId, boardId])
+}
+
+model BoardColumn {
+  id           Int               @id @default(autoincrement())
+  name         String
+  position     Int
+  board        Board             @relation(fields: [boardId], references: [id])
+  boardId      Int
+  cards        Card[]
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+}
+
+model Card {
+  id           Int               @id @default(autoincrement())
+  title        String
+  description  String?
+  position     Int
+  priority    CardPriority      @default(MEDIUM)
+  dueDate     DateTime?
+
+  column       BoardColumn       @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  columnId     Int
+
+  assignee    User?              @relation("CardAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeId  Int?
+
+  createdAt    TimestamptzString @default(now())
+  updatedAt    temporal.updatedAtString()
+}
