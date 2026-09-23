@@ -31,5 +31,6 @@ Thumbs.db
 *.sw?
 *.local
 .idea/
+.kilo/
 .vscode/*
 !.vscode/extensions.json
