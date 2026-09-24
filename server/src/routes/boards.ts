@@ -32,4 +32,14 @@ export async function boardRoutes(app: FastifyInstance) {
     return reply.code(201).send(board);
   });
 
+  app.get("/", async () => {
+    const boards =
+      await db.orm.public.Board
+        .where({})
+        .all();
+
+    return boards;
+  });
+
+
 }
