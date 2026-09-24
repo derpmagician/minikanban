@@ -28,12 +28,12 @@ export async function cardRoutes(app: FastifyInstance) {
 
 		const card = await db.orm.public.Card.create({
 			title: body.title,
-      description: body.description ?? null,
-      position: body.position,
-      priority: body.priority ?? "medium",
-      columnId: body.columnId,
-      assigneeId: body.assigneeId ?? null,
-      dueDate: body.dueDate
+			description: body.description ?? null,
+			position: body.position,
+			priority: body.priority ?? "medium",
+			columnId: body.columnId,
+			assigneeId: body.assigneeId ?? null,
+			dueDate: body.dueDate
         ? Temporal.Instant.from(body.dueDate)
         : null,
     });
@@ -43,4 +43,55 @@ export async function cardRoutes(app: FastifyInstance) {
 
 
 	})
+
+	app.get("/column/:columnId", async (request) => {
+		const { columnId } = request.params as {
+			columnId: string,
+		};
+
+		const cards = await db.orm.public.Card
+			.where({
+				columnId: Number(columnId),
+			})
+			.all();
+
+		return cards;
+
+	})
+
+	app.patch("/:cardId/move", async (request, reply) => {
+		const { cardId } = request.params as {
+			cardId: string;
+		}
+
+		const body = request.body as {
+			columnId: number;
+			position: number;
+		};
+
+		const card =
+			await db.orm.public.Card
+				.where({
+					id: Number(cardId),
+				})
+				.first();
+			
+		if (!card) {
+			return reply.code(404).send({
+				error: "Card not found",
+			});
+		}
+
+		const updated =
+			await db.orm.public.Card
+				.where({
+					id: Number(cardId),
+				})
+				.update({
+					columnId: body.columnId,
+					position: body.position,
+				});
+
+		return updated;
+	});
 }

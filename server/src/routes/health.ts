@@ -11,7 +11,7 @@ export async function healthRoutes(app: FastifyInstance) {
 
   app.get("/health/db", async (_request, reply) => {
 
-    try{
+    try {
     await db.orm.public.User.where({}).first();
     return {
       status: "ok",

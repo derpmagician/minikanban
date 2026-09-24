@@ -16,14 +16,17 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
+    "@fastify/jwt": "^10.2.2",
     "@prisma/orm-postgres": "^8.0.0-rc.11",
     "argon2": "^0.45.1",
+    "bcrypt": "^6.0.0",
     "dotenv": "^17.4.2",
     "fastify": "^5.12.5",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@prisma/cli-engine": "^0.3.0",
+    "@types/bcrypt": "^6.0.0",
     "@types/node": "^26.6.2",
     "prisma": "^8.0.0-rc.15",
     "tsx": "^4.23.15",

@@ -41,5 +41,90 @@ export async function boardRoutes(app: FastifyInstance) {
     return boards;
   });
 
+  app.get("/:boardId", async (request, reply) => {
+    const { boardId } = request.params as {
+      boardId: string;
+    };
+
+    const board = await db.orm.public.Board
+      .where({
+        id: Number(boardId),
+      })
+      .first();
+
+    if(!board) {
+      return reply.code(404).send({
+        error: "Board not found"
+      })
+    }
+
+    return board;
+  })
+
+  app.put("/:boardId", async (request, reply) => {
+    const { boardId } = request.params as {
+      boardId: string;
+    };
+
+    const body = request.body as {
+      name: string;
+    }
+
+    const board =
+      await db.orm.public.Board
+        .where({
+          id: Number(boardId),
+        })
+        .first();
+
+      if (!board) {
+        return reply.code(404).send({
+          error: "Board not found"
+        })
+      }
+      
+      const updated =
+        await db.orm.public.Board
+          .where({
+            id: Number(boardId),
+          })
+          .update({
+            name: body.name,
+          });
+
+      return updated;
+
+  })
+
+  app.delete("/:boardId", async (request, reply) => {
+    const {boardId} = request.params as {
+      boardId: string;
+    };
+
+    const board =
+      await db.orm.public.Board
+        .where({
+          id: Number(boardId),
+        })
+        .first();
+
+    if (!board) {
+      return reply.code(404).send({
+        error: "Board not found"
+      });
+    }
+
+    await db.orm.public.Board
+      .where({
+        id: Number(boardId),
+      })
+      .delete();
+
+    return {
+      success: true
+    }
+
+
+  });
 
 }

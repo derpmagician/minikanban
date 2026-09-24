@@ -6,9 +6,9 @@ export async function authRoutes(app: FastifyInstance) {
 	app.post("/register", async (request, reply) => {
 		
 		const body = request.body as {
-      email: string;
-      password: string;
-      username: string;
+			email: string;
+			password: string;
+			username: string;
     };
 
 		const existingUser =
