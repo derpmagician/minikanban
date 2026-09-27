@@ -5,6 +5,7 @@ import { authRoutes } from "./routes/auth.js";
 import { boardRoutes } from "./routes/boards.js";
 import { cardRoutes } from "./routes/cards.js";
 import { columnRoutes } from "./routes/columns.js";
+import { memberRoutes } from "./routes/members.js";
 
 export async function buildApp() {
   const app = Fastify({
@@ -40,6 +41,10 @@ export async function buildApp() {
 
   await app.register(cardRoutes, {
     prefix: "/api/cards"
+  });
+
+  await app.register(memberRoutes, {
+    prefix: "/api/members",
   });
 
   return app;

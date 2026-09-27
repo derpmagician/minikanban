@@ -50,4 +50,50 @@ export async function columnRoutes(app: FastifyInstance) {
 		return columns;
 	})
 
+  app.put("/:columnId", async (request, reply) => {
+    const { columnId } = request.params as {
+      columnId: string;
+    };
+
+    const body = request.body as {
+      name: string;
+      position: number;
+    };
+
+    const updated = await db.orm.public.BoardColumn
+      .where({
+        id: Number(columnId),
+      })
+      .update({
+        name: body.name,
+        position: body.position,
+      });
+
+    if (!updated) {
+      return reply.code(404).send({
+        error: "Column not found",
+      });
+    }
+
+    return updated;
+  });
+
+  app.delete("/:columnId", async (request, reply) => {
+    const { columnId } = request.params as { columnId: string };
+
+    const deleted = await db.orm.public.BoardColumn
+      .where({
+        id: Number(columnId)
+      })
+      .delete();
+
+    if (!deleted) {
+      return reply.code(404).send({
+        error: "Column not found"
+      });
+    }
+
+    return { success: true };
+
+  });
 }

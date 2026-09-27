@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { db } from "../prisma/db.js";
 
 export async function cardRoutes(app: FastifyInstance) {
+
 	app.post("/", async (request, reply) => {
 		const body = request.body as {
 			title: string;
@@ -38,9 +39,7 @@ export async function cardRoutes(app: FastifyInstance) {
         : null,
     });
 
-
 		return reply.code(201).send(card);
-
 
 	})
 
@@ -82,16 +81,73 @@ export async function cardRoutes(app: FastifyInstance) {
 			});
 		}
 
-		const updated =
-			await db.orm.public.Card
-				.where({
-					id: Number(cardId),
-				})
-				.update({
-					columnId: body.columnId,
-					position: body.position,
-				});
+		const updated = await db.orm.public.Card
+			.where({
+				id: Number(cardId),
+			})
+			.update({
+				columnId: body.columnId,
+				position: body.position,
+			});
 
 		return updated;
+
 	});
+
+	app.put("/:cardId", async (request, reply) => {
+
+		const { cardId } = request.params as {
+			cardId: string;
+		};
+
+		const body = request.body as {
+			title: string;
+			description?: string;
+			priority?: "low" | "medium" | "high";
+			dueDate?: string;
+		};
+
+		const updated = await db.orm.public.Card
+			.where({
+				id: Number(cardId),
+			})
+			.update({
+				title: body.title,
+				description: body.description ?? null,
+				priority: body.priority ?? "medium",
+				dueDate: body.dueDate
+					? Temporal.Instant.from(body.dueDate)
+					: null,
+			});
+
+		if (!updated) {
+			return reply.code(404).send({
+				error: "Card not found",
+			});
+		}
+
+		return updated;
+
+	});
+
+	app.delete("/:cardId", async (request, reply) => {
+		const { cardId } = request.params as {
+			cardId: string;
+		}
+
+		const deleted = await db.orm.public.Card
+			.where({
+				id: Number(cardId),
+			})
+			.delete();
+		
+			if (!deleted) {
+				return reply.code(404).send({
+					error: "Card not found",
+				});
+			}
+
+			return { success: true };
+
+	})
 }
