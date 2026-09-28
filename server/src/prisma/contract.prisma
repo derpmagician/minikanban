@@ -15,19 +15,30 @@ enum CardPriority {
   HIGH   = "high"
 }
 
-model User {
+model RefreshToken {
   id           Int      @id @default(autoincrement())
-  email        String   @unique
-  username     String?  @unique
-  name         String?
-  passwordHash String
-
-  boards       Board[]
-  boardMemberships  BoardMember[]
-  assignedCards  Card[]            @relation("CardAssignee")
-
+  tokenHash    String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId       Int
+  expiresAt    DateTime
   createdAt    TimestamptzString @default(now())
-  updatedAt    temporal.updatedAtString()
+}
+
+
+model User {
+  id               Int      @id @default(autoincrement())
+  email            String   @unique
+  username         String?  @unique
+  name             String?
+  passwordHash     String
+
+  boards           Board[]
+  boardMemberships BoardMember[]
+  assignedCards    Card[]            @relation("CardAssignee")
+  refreshTokens    RefreshToken[]
+
+  createdAt        TimestamptzString @default(now())
+  updatedAt        temporal.updatedAtString()
 }
 
 model Board {

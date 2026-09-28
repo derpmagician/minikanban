@@ -1,67 +1,106 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../prisma/db.js";
+import { getBoardAccess } from "../utils/board-access.js";
 
 export async function boardRoutes(app: FastifyInstance) {
 
-  app.post("/", async (request, reply) => {
+  app.post("/", { onRequest: [app.authenticate], }, async (request, reply) => {
+      const body = request.body as {
+        name: string;
+      };
 
-    const body = request.body as {
-      name: string;
-      ownerId: number;
-    };
+      const userId = request.user.userId;
 
-    const owner =
-      await db.orm.public.User
-        .where({
-          id: body.ownerId,
-        })
-        .first();
-
-    if (!owner) {
-      return reply.code(404).send({
-        error: "Owner not found",
-      });
-    }
-
-    const board =
-      await db.orm.public.Board.create({
+      const board = await db.orm.public.Board.create({
         name: body.name,
-        ownerId: body.ownerId,
+        ownerId: userId,
       });
 
-    return reply.code(201).send(board);
-  });
+      return reply.code(201).send(board);
 
-  app.get("/", async () => {
-    const boards =
-      await db.orm.public.Board
-        .where({})
-        .all();
+    },
+  );
 
-    return boards;
-  });
+  app.get("/", { onRequest: [app.authenticate], }, async (request) => {
+    const userId = request.user.userId;
 
-  app.get("/:boardId", async (request, reply) => {
+    // 1. Boards donde el usuario es propietario
+    const ownedBoards = await db.orm.public.Board
+      .where({
+        ownerId: userId,
+      })
+      .all();
+
+    // 2. Membresías del usuario
+    const memberships = await db.orm.public.BoardMember
+      .where({
+        userId,
+      })
+      .all();
+
+    // 3. Obtener los boards de esas membresías
+    const memberBoards = await Promise.all(
+      memberships.map(async (membership) => {
+        return await db.orm.public.Board
+          .where({
+            id: membership.boardId,
+          })
+          .first();
+      }),
+    );
+
+    // 4. Eliminar posibles valores null
+    const validMemberBoards = memberBoards.filter(
+      (board): board is NonNullable<typeof board> =>
+        board !== null,
+    );
+
+    // 5. Combinar ambos grupos
+    const allBoards = [
+      ...ownedBoards,
+      ...validMemberBoards,
+    ];
+
+    // 6. Eliminar duplicados por id
+    const uniqueBoards = Array.from(
+      new Map(
+        allBoards.map((board) => [board.id, board]),
+      ).values(),
+    );
+
+    return uniqueBoards;
+
+    },
+  );
+
+  app.get("/:boardId", { onRequest: [app.authenticate], }, async (request, reply) => {
     const { boardId } = request.params as {
       boardId: string;
     };
 
-    const board = await db.orm.public.Board
-      .where({
-        id: Number(boardId),
-      })
-      .first();
+    const id = Number(boardId);
 
-    if(!board) {
-      return reply.code(404).send({
-        error: "Board not found"
-      })
+    if (!Number.isInteger(id)) {
+      return reply.code(400).send({
+        error: "Invalid board id",
+      });
     }
 
-    return board;
-  })
+    const userId = request.user.userId;
 
-  app.get("/:boardId/full", async (request, reply) => {
+    const access = await getBoardAccess(id, userId);
+
+    if (!access) {
+      return reply.code(403).send({
+        error: "Forbidden",
+      });
+    }
+
+    return access.board;
+
+  },);
+
+  app.get("/:boardId/full", { onRequest: [app.authenticate], }, async (request, reply) => {
 
     const { boardId } = request.params as {
       boardId: string;
@@ -75,37 +114,29 @@ export async function boardRoutes(app: FastifyInstance) {
       });
     }
 
-    // Obtener el tablero
-    const board =
-      await db.orm.public.Board
-        .where({
-          id,
-        })
-        .first();
+    const userId = request.user.userId;
 
-    if (!board) {
-      return reply.code(404).send({
-        error: "Board not found",
+    const access =
+      await getBoardAccess(id, userId);
+
+    if (!access) {
+      return reply.code(403).send({
+        error: "Forbidden",
       });
     }
 
-    // Obtener los miembros del tablero
-    const members =
-      await db.orm.public.BoardMember
-        .where({
-          boardId: id,
-        })
-        .all();
+    const members = await db.orm.public.BoardMember
+      .where({
+        boardId: id,
+      })
+      .all();
 
-    // Obtener las columnas del tablero
-    const columns =
-      await db.orm.public.BoardColumn
-        .where({
-          boardId: id,
-        })
-        .all();
+    const columns = await db.orm.public.BoardColumn
+      .where({
+        boardId: id,
+      })
+      .all();
 
-    // Obtener las tarjetas de cada columna
     const columnsWithCards = await Promise.all(
       columns.map(async (column) => {
 
@@ -120,82 +151,94 @@ export async function boardRoutes(app: FastifyInstance) {
           ...column,
           cards,
         };
-      })
+      }),
     );
 
     return {
-      ...board,
+      ...access.board,
       members,
       columns: columnsWithCards,
     };
 
-  });
+    },
+  );
 
 
-  app.put("/:boardId", async (request, reply) => {
+  app.put("/:boardId", { onRequest: [app.authenticate], }, async (request, reply) => {
+
     const { boardId } = request.params as {
       boardId: string;
     };
 
-    const body = request.body as {
-      name: string;
+    const id = Number(boardId);
+
+    if (!Number.isInteger(id)) {
+      return reply.code(400).send({
+        error: "Invalid board id",
+      });
     }
 
-    const board =
-      await db.orm.public.Board
-        .where({
-          id: Number(boardId),
-        })
-        .first();
+    const userId = request.user.userId;
 
-      if (!board) {
-        return reply.code(404).send({
-          error: "Board not found"
-        })
-      }
-      
-      const updated =
-        await db.orm.public.Board
-          .where({
-            id: Number(boardId),
-          })
-          .update({
-            name: body.name,
-          });
+    const access = await getBoardAccess(id, userId);
 
-      return updated;
+    if (!access) {
+      return reply.code(403).send({
+        error: "Forbidden",
+      });
+    }
 
-  })
+    const body = request.body as {
+      name: string;
+    };
 
-  app.delete("/:boardId", async (request, reply) => {
-    const {boardId} = request.params as {
+    const updated = await db.orm.public.Board
+      .where({
+        id,
+      })
+      .update({
+        name: body.name,
+      });
+
+    return updated;
+
+  },);
+
+  app.delete("/:boardId", { onRequest: [app.authenticate], }, async (request, reply) => {
+
+    const { boardId } = request.params as {
       boardId: string;
     };
 
-    const board =
-      await db.orm.public.Board
-        .where({
-          id: Number(boardId),
-        })
-        .first();
+    const id = Number(boardId);
 
-    if (!board) {
-      return reply.code(404).send({
-        error: "Board not found"
+    if (!Number.isInteger(id)) {
+      return reply.code(400).send({
+        error: "Invalid board id",
+      });
+    }
+
+    const userId = request.user.userId;
+
+    const access = await getBoardAccess(id, userId);
+
+    if (!access) {
+      return reply.code(403).send({
+        error: "Forbidden",
       });
     }
 
     await db.orm.public.Board
       .where({
-        id: Number(boardId),
+        id,
       })
       .delete();
 
     return {
-      success: true
-    }
+      success: true,
+    };
 
-
-  });
+    },
+  );
 
 }

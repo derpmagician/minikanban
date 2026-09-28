@@ -138,14 +138,23 @@ export async function authRoutes(app: FastifyInstance) {
 			});
 		}
 
+		const accessToken =
+			await app.jwt.sign({
+				userId: user.id,
+			});
+
 		// 7. Login correcto
 		return reply.send({
-			id: user.id,
-			email: user.email,
-			username: user.username,
-			name: user.name,
-			createdAt: user.createdAt,
-			updatedAt: user.updatedAt,
+			accessToken,
+			user: {
+				id: user.id,
+				email: user.email,
+				username: user.username,
+				name: user.name,
+				createdAt: user.createdAt,
+				updatedAt: user.updatedAt,
+			},
+
 		});
 	});
 }
