@@ -1,15 +1,16 @@
 import { db } from "../prisma/db.js";
 
-export async function getBoardAccess(
-  boardId: number,
-  userId: number,
-) {
-  const board =
-    await db.orm.public.Board
-      .where({
-        id: boardId,
-      })
-      .first();
+export type BoardRole =
+  | "owner"
+  | "admin"
+  | "member";
+
+export async function getBoardAccess( boardId: number, userId: number, ) {
+  const board = await db.orm.public.Board
+		.where({
+			id: boardId,
+		})
+		.first();
 
   if (!board) {
     return null;
@@ -20,22 +21,50 @@ export async function getBoardAccess(
       board,
       role: "owner" as const,
     };
+
   }
 
-  const member =
-    await db.orm.public.BoardMember
-      .where({
-        boardId,
-        userId,
-      })
-      .first();
+  const membership = await db.orm.public.BoardMember
+		.where({
+			boardId,
+			userId,
+		})
+		.first();
 
-  if (!member) {
+  if (!membership) {
     return null;
   }
 
   return {
     board,
-    role: member.role,
+    role: membership.role as BoardRole,
   };
+
+}
+
+export async function requireBoardRole( boardId: number, userId: number, roles: BoardRole[], ) {
+  const access = await getBoardAccess(
+		boardId,
+		userId,
+	);
+
+  if (!access) {
+    return null;
+  }
+
+  if (roles.includes(access.role)) {
+    return access;
+  }
+
+  return false;
+
+}
+
+export async function requireBoardAdmin( boardId: number, userId: number, ) {
+  return requireBoardRole(
+    boardId,
+    userId,
+    ["owner", "admin"],
+  );
+
 }
