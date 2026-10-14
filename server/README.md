@@ -64,7 +64,7 @@ Flujo al cambiar el esquema:
 - `prisma.config.ts` — configuración de la CLI de Prisma
 - `migrations/` — migraciones de la base de datos
 
-Para la referencia de Prisma ORM 8, consulta `prisma-8.md`.
+
 
 
 
@@ -235,7 +235,7 @@ Invoke-RestMethod `
 
 ## 3.3 Crear un board
 
-> Actualmente estamos modificando el endpoint para que `ownerId` salga del JWT. Por tanto, el cliente solamente debe enviar `name`.
+> El `ownerId` se asigna en el backend a partir del JWT (`request.user.userId`). El cliente solamente debe enviar `name`.
 
 ```powershell
 Invoke-RestMethod `
@@ -288,6 +288,8 @@ Invoke-RestMethod `
 
 ## 3.6 Actualizar un board
 
+> Requiere ser **owner o admin** del board.
+
 ```powershell
 Invoke-RestMethod `
   -Method PUT `
@@ -304,6 +306,8 @@ Invoke-RestMethod `
 ---
 
 ## 3.7 Eliminar un board
+
+> Requiere ser el **owner** del board. Si el board tiene columnas, actualmente devuelve 500: la FK `boardColumn → board` no tiene `ON DELETE CASCADE` en la base de datos (pendiente: añadirlo al contrato y crear migración). Mientras tanto, elimina primero las columnas.
 
 ```powershell
 Invoke-RestMethod `
@@ -606,7 +610,7 @@ Invoke-RestMethod `
   }'
 ```
 
-> Actualmente esta ruta todavía necesita autorización basada en propietario/rol. No debemos confiar únicamente en el `userId` enviado por el cliente.
+> Requiere ser **owner o admin** del board (`requireBoardAdmin`). El `userId` del body es el usuario que se quiere agregar; nunca se toma como actor de la petición.
 
 ---
 
@@ -876,22 +880,103 @@ Invoke-RestMethod `
 | DELETE | `/api/cards/:id`         | Eliminar card        |
 | POST   | `/api/members`           | Agregar miembro      |
 | GET    | `/api/members/board/:id` | Listar miembros      |
+| PATCH  | `/api/members/:id/role`  | Cambiar rol miembro  |
 | DELETE | `/api/members/:id`       | Eliminar miembro     |
 
 ---
 
-# 10. Estado actual de autenticación
+# 10. Estado actual de autenticación y autorización
 
 Actualmente:
 
 * `POST /api/auth/register` → público.
 * `POST /api/auth/login` → público.
 * JWT → funcionando.
-* `GET /api/boards` → protegido con JWT.
 * El token contiene `userId`.
 * `request.user.userId` está disponible para el backend.
-* Las demás rutas todavía deben recibir progresivamente la protección/autorización.
-* `RefreshToken` ya existe en el contrato, pero todavía no hemos implementado el flujo de refresh.
-* La autorización por `ownerId` y `BoardMember.role` todavía está pendiente.
+
+### Validación de entrada
+
+Todas las rutas validan `body` y `params` con Zod usando el validador nativo de Fastify (`src/app.ts`). Si falla, la respuesta es 400:
+
+```json
+{
+  "error": "Validation error",
+  "issues": [
+    { "path": ["name"], "message": "..." }
+  ]
+}
+```
+
+Reglas principales:
+
+* `name` (boards/columns) → 1-100 caracteres.
+* `title` (cards) → 1-200 caracteres.
+* `description` → máximo 5000 caracteres.
+* `position` → entero ≥ 0.
+* `priority` → `low`, `medium` o `high`.
+* `role` → `admin` o `member`.
+* `dueDate` → ISO 8601 (`2026-10-15T23:59:59Z` o con offset, p. ej. `2026-10-15T23:59:59+02:00`).
+* `:boardId`, `:columnId`, `:cardId`, `:memberId` → enteros positivos.
+
+### Boards
+
+* `GET /api/boards` → protegido con JWT.
+* `POST /api/boards` → protegido con JWT.
+* `GET /api/boards/:id` → protegido con JWT y acceso al board.
+* `GET /api/boards/:id/full` → protegido con JWT y acceso al board.
+* `PUT /api/boards/:id` → protegido con JWT; requiere owner o admin.
+* `DELETE /api/boards/:id` → protegido con JWT; requiere owner.
+
+### Columns
+
+* `POST /api/columns` → protegido con JWT y acceso al board.
+* `GET /api/columns/board/:id` → protegido con JWT y acceso al board.
+* `PUT /api/columns/:id` → protegido con JWT y acceso al board.
+* `DELETE /api/columns/:id` → protegido con JWT y requiere owner/admin.
+
+### Cards
+
+* `POST /api/cards` → protegido con JWT y acceso al board.
+* `GET /api/cards/column/:id` → protegido con JWT y acceso al board.
+* `PUT /api/cards/:id` → protegido con JWT y acceso al board.
+* `PATCH /api/cards/:id/move` → protegido con JWT y acceso al board.
+* `DELETE /api/cards/:id` → protegido con JWT y requiere owner/admin.
+
+### Board Members
+
+* `POST /api/members` → protegido con JWT y requiere owner/admin.
+* `GET /api/members/board/:id` → protegido con JWT y acceso al board.
+* `PATCH /api/members/:id/role` → protegido con JWT y requiere owner.
+* `DELETE /api/members/:id` → protegido con JWT y requiere owner/admin.
+
+### Roles
+
+La autorización utiliza tres roles:
+
+* `owner` → propietario del board.
+* `admin` → administrador del board.
+* `member` → miembro normal.
+
+Las operaciones que requieren permisos específicos se validan mediante `getBoardAccess()`, `requireBoardRole()` y `requireBoardAdmin()`.
+
+### Refresh Tokens
+
+* El modelo `RefreshToken` ya existe en el contrato.
+* El flujo de refresh todavía no está implementado.
+* Logout mediante invalidación de refresh token todavía está pendiente.
+
+### Siguiente etapa
+
+El backend ya cuenta con autenticación JWT y autorización basada en propietario y roles.
+
+El siguiente bloque de autenticación será implementar:
+
+1. Access tokens con expiración.
+2. Refresh tokens.
+3. Rotación de refresh tokens.
+4. Logout.
+5. Revocación de refresh tokens.
+
 
 El siguiente paso del backend es separar claramente **autenticación** (JWT) de **autorización** (propietario/admin/member).
