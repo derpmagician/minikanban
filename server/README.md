@@ -120,6 +120,8 @@ Respuesta esperada:
 
 # 2. Auth
 
+> El login devuelve un `accessToken` JWT (válido 15 minutos) y guarda un refresh token (válido 7 días) en una cookie `httpOnly`. El refresh rota el token en cada uso.
+
 ## 2.1 Registrar usuario
 
 ```powershell
@@ -189,6 +191,43 @@ Comprobar:
 ```powershell
 $token
 ```
+
+---
+
+## 2.4 Renovar el access token (refresh)
+
+El refresh token viaja en una cookie, así que hay que conservar la sesión de PowerShell con `-SessionVariable`:
+
+```powershell
+$login = Invoke-RestMethod `
+  -Method POST `
+  -Uri http://localhost:3000/api/auth/login `
+  -ContentType "application/json" `
+  -Body '{
+    "email": "usuario3@test.com",
+    "password": "Password123"
+  }' `
+  -SessionVariable sesion
+```
+
+Renovar:
+
+```powershell
+$refresh = Invoke-RestMethod `
+  -Method POST `
+  -Uri http://localhost:3000/api/auth/refresh `
+  -WebSession $sesion `
+  -ContentType "application/json" `
+  -Body '{}'
+
+$token = $refresh.accessToken
+```
+
+> Cada refresh **rota** la cookie: el token anterior queda invalidado. Si se reutiliza, la respuesta es `401 Invalid refresh token`.
+>
+> Sin cookie (`-WebSession`) la respuesta es `401 Missing refresh token`.
+>
+> El body `{}` con `Content-Type: application/json` es necesario en PowerShell; un navegador puede hacer `fetch(url, { method: "POST", credentials: "include" })` sin body.
 
 ---
 
@@ -863,6 +902,7 @@ Invoke-RestMethod `
 | GET    | `/api/health/db`         | Comprobar PostgreSQL |
 | POST   | `/api/auth/register`     | Registrar usuario    |
 | POST   | `/api/auth/login`        | Login + JWT          |
+| POST   | `/api/auth/refresh`      | Renovar access token |
 | GET    | `/api/boards`            | Listar boards        |
 | POST   | `/api/boards`            | Crear board          |
 | GET    | `/api/boards/:id`        | Obtener board        |
@@ -960,23 +1000,20 @@ La autorización utiliza tres roles:
 
 Las operaciones que requieren permisos específicos se validan mediante `getBoardAccess()`, `requireBoardRole()` y `requireBoardAdmin()`.
 
-### Refresh Tokens
+### Tokens y sesiones
 
-* El modelo `RefreshToken` ya existe en el contrato.
-* El flujo de refresh todavía no está implementado.
-* Logout mediante invalidación de refresh token todavía está pendiente.
+* Access token JWT → expira a los **15 minutos** (`expiresIn` configurado en `src/app.ts`).
+* Refresh token → opaco (32 bytes aleatorios), se guarda en la base de datos **solo como hash SHA-256**.
+* El refresh viaja en una cookie `httpOnly` con `SameSite=Strict` y `Path=/api/auth`.
+* Duración del refresh token → **7 días**.
+* Rotación → cada llamada a `/api/auth/refresh` consume el token anterior y emite uno nuevo; reutilizar un token ya consumido devuelve `401`.
+* CORS → `credentials: true` (el cliente debe usar `credentials: "include"`).
 
 ### Siguiente etapa
 
-El backend ya cuenta con autenticación JWT y autorización basada en propietario y roles.
-
-El siguiente bloque de autenticación será implementar:
-
-1. Access tokens con expiración.
-2. Refresh tokens.
-3. Rotación de refresh tokens.
-4. Logout.
-5. Revocación de refresh tokens.
+1. Logout (`POST /api/auth/logout`): eliminar el refresh token de la BD y limpiar la cookie.
+2. Revocación de todas las sesiones de un usuario.
+3. Limpieza periódica de refresh tokens expirados.
 
 
 El siguiente paso del backend es separar claramente **autenticación** (JWT) de **autorización** (propietario/admin/member).

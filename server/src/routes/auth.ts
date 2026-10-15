@@ -1,32 +1,39 @@
 import type { FastifyInstance } from "fastify";
+import type { z } from "zod";
 import argon2 from "argon2";
 
 import { db } from "../prisma/db.js";
 import { registerSchema, loginSchema } from "../schemas/auth.js";
+import {
+  REFRESH_COOKIE_NAME,
+  clearRefreshCookie,
+  consumeRefreshToken,
+  issueRefreshToken,
+  setRefreshCookie,
+} from "../utils/refresh-tokens.js";
 
 export async function authRoutes(app: FastifyInstance) {
 
-  app.post("/register", async (request, reply) => {
+  // =========================================================
+  // REGISTER
+  // POST /api/auth/register
+  // =========================================================
 
-    // 1. Validar los datos recibidos
-    const parsed = registerSchema.safeParse(request.body);
+  app.post("/register", {
+    schema: {
+      body: registerSchema,
+    },
+  }, async (request, reply) => {
 
-    if (!parsed.success) {
-      return reply.code(400).send({
-        error: "Validation error",
-        issues: parsed.error.issues,
-      });
-    }
-
-    // 2. Obtener los datos ya validados
+    // 1. Obtener los datos ya validados
     const {
       email,
       username,
       name,
       password,
-    } = parsed.data;
+    } = request.body as z.infer<typeof registerSchema>;
 
-    // 3. Normalizar datos
+    // 2. Normalizar datos
     const normalizedEmail = email
       .trim()
       .toLowerCase();
@@ -34,7 +41,7 @@ export async function authRoutes(app: FastifyInstance) {
     const normalizedUsername = username
       .trim();
 
-    // 4. Comprobar email existente
+    // 3. Comprobar email existente
     const existingEmail =
       await db.orm.public.User
         .where({
@@ -48,7 +55,7 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
-    // 5. Comprobar username existente
+    // 4. Comprobar username existente
     const existingUsername =
       await db.orm.public.User
         .where({
@@ -62,13 +69,13 @@ export async function authRoutes(app: FastifyInstance) {
       });
     }
 
-    // 6. Convertir la contraseña en un hash seguro
+    // 5. Convertir la contraseña en un hash seguro
     const passwordHash =
       await argon2.hash(password, {
         type: argon2.argon2id,
       });
 
-    // 7. Crear el usuario
+    // 6. Crear el usuario
     const user =
       await db.orm.public.User.create({
         email: normalizedEmail,
@@ -77,7 +84,7 @@ export async function authRoutes(app: FastifyInstance) {
         passwordHash,
       });
 
-    // 8. Nunca devolver passwordHash
+    // 7. Nunca devolver passwordHash
     return reply.code(201).send({
       id: user.id,
       email: user.email,
@@ -88,73 +95,147 @@ export async function authRoutes(app: FastifyInstance) {
     });
   });
 
-	app.post("/login", async (request, reply) => {
+  // =========================================================
+  // LOGIN
+  // POST /api/auth/login
+  // Devuelve un access token (15m) y guarda el
+  // refresh token (7d) en una cookie httpOnly.
+  // =========================================================
 
-		// 1. Validar los datos
-		const parsed = loginSchema.safeParse(request.body);
+  app.post("/login", {
+    schema: {
+      body: loginSchema,
+    },
+  }, async (request, reply) => {
 
-		if (!parsed.success) {
-			return reply.code(400).send({
-				error: "Validation error",
-				issues: parsed.error.issues,
-			});
-		}
+    // 1. Obtener datos validados
+    const {
+      email,
+      password,
+    } = request.body as z.infer<typeof loginSchema>;
 
-		// 2. Obtener datos validados
-		const {
-			email,
-			password,
-		} = parsed.data;
+    // 2. Normalizar email
+    const normalizedEmail =
+      email.trim().toLowerCase();
 
-		// 3. Normalizar email
-		const normalizedEmail =
-			email.trim().toLowerCase();
+    // 3. Buscar usuario
+    const user =
+      await db.orm.public.User
+        .where({
+          email: normalizedEmail,
+        })
+        .first();
 
-		// 4. Buscar usuario
-		const user =
-			await db.orm.public.User
-				.where({
-					email: normalizedEmail,
-				})
-				.first();
+    // 4. No revelar si el email existe
+    if (!user) {
+      return reply.code(401).send({
+        error: "Invalid credentials",
+      });
+    }
 
-		// 5. No revelar si el email existe
-		if (!user) {
-			return reply.code(401).send({
-				error: "Invalid credentials",
-			});
-		}
+    // 5. Verificar contraseña
+    const validPassword =
+      await argon2.verify(
+        user.passwordHash,
+        password,
+      );
 
-		// 6. Verificar contraseña
-		const validPassword =
-			await argon2.verify(
-				user.passwordHash,
-				password,
-			);
+    if (!validPassword) {
+      return reply.code(401).send({
+        error: "Invalid credentials",
+      });
+    }
 
-		if (!validPassword) {
-			return reply.code(401).send({
-				error: "Invalid credentials",
-			});
-		}
+    // 6. Firmar access token y emitir refresh token
+    const accessToken =
+      await app.jwt.sign({
+        userId: user.id,
+      });
 
-		const accessToken =
-			await app.jwt.sign({
-				userId: user.id,
-			});
+    const refreshToken =
+      await issueRefreshToken(user.id);
 
-		// 7. Login correcto
-		return reply.send({
-			accessToken,
-			user: {
-				id: user.id,
-				email: user.email,
-				username: user.username,
-				name: user.name,
-				createdAt: user.createdAt,
-				updatedAt: user.updatedAt,
-			},
+    setRefreshCookie(reply, refreshToken);
 
-		});
-	});
+    // 7. Login correcto
+    return reply.send({
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        name: user.name,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    });
+  });
+
+  // =========================================================
+  // REFRESH
+  // POST /api/auth/refresh
+  // Rota el refresh token y devuelve un nuevo access token.
+  // =========================================================
+
+  app.post("/refresh", async (request, reply) => {
+
+    // 1. Leer la cookie
+    const token = request.cookies[REFRESH_COOKIE_NAME];
+
+    if (!token) {
+      return reply.code(401).send({
+        error: "Missing refresh token",
+      });
+    }
+
+    // 2. Consumir el token (rotación: un solo uso)
+    const stored = await consumeRefreshToken(token);
+
+    if (!stored) {
+      clearRefreshCookie(reply);
+
+      return reply.code(401).send({
+        error: "Invalid refresh token",
+      });
+    }
+
+    // 3. Comprobar que el usuario siga existiendo
+    const user =
+      await db.orm.public.User
+        .where({
+          id: stored.userId,
+        })
+        .first();
+
+    if (!user) {
+      clearRefreshCookie(reply);
+
+      return reply.code(401).send({
+        error: "Invalid refresh token",
+      });
+    }
+
+    // 4. Nuevo access token y nuevo refresh token
+    const accessToken =
+      await app.jwt.sign({
+        userId: user.id,
+      });
+
+    const newRefreshToken =
+      await issueRefreshToken(user.id);
+
+    setRefreshCookie(reply, newRefreshToken);
+
+    return reply.send({
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        name: user.name,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+    });
+  });
 }

@@ -1,27 +1,47 @@
 import type { FastifyInstance } from "fastify";
+import type { z } from "zod";
 import { db } from "../prisma/db.js";
-import { getBoardAccess } from "../utils/board-access.js";
+import { getBoardAccess, requireBoardRole } from "../utils/board-access.js";
+import {
+  boardIdParamsSchema,
+  createBoardSchema,
+  updateBoardSchema,
+} from "../schemas/boards.js";
 
 export async function boardRoutes(app: FastifyInstance) {
 
-  app.post("/", { onRequest: [app.authenticate], }, async (request, reply) => {
-      const body = request.body as {
-        name: string;
-      };
+  // =========================================================
+  // CREATE BOARD
+  // POST /api/boards
+  // =========================================================
 
-      const userId = request.user.userId;
-
-      const board = await db.orm.public.Board.create({
-        name: body.name,
-        ownerId: userId,
-      });
-
-      return reply.code(201).send(board);
-
+  app.post("/", {
+    onRequest: [app.authenticate],
+    schema: {
+      body: createBoardSchema,
     },
-  );
+  }, async (request, reply) => {
+    const body =
+      request.body as z.infer<typeof createBoardSchema>;
 
-  app.get("/", { onRequest: [app.authenticate], }, async (request) => {
+    const userId = request.user.userId;
+
+    const board = await db.orm.public.Board.create({
+      name: body.name,
+      ownerId: userId,
+    });
+
+    return reply.code(201).send(board);
+  });
+
+  // =========================================================
+  // LIST BOARDS
+  // GET /api/boards
+  // =========================================================
+
+  app.get("/", {
+    onRequest: [app.authenticate],
+  }, async (request) => {
     const userId = request.user.userId;
 
     // 1. Boards donde el usuario es propietario
@@ -69,26 +89,25 @@ export async function boardRoutes(app: FastifyInstance) {
     );
 
     return uniqueBoards;
+  });
 
+  // =========================================================
+  // GET BOARD
+  // GET /api/boards/:boardId
+  // =========================================================
+
+  app.get("/:boardId", {
+    onRequest: [app.authenticate],
+    schema: {
+      params: boardIdParamsSchema,
     },
-  );
-
-  app.get("/:boardId", { onRequest: [app.authenticate], }, async (request, reply) => {
-    const { boardId } = request.params as {
-      boardId: string;
-    };
-
-    const id = Number(boardId);
-
-    if (!Number.isInteger(id)) {
-      return reply.code(400).send({
-        error: "Invalid board id",
-      });
-    }
+  }, async (request, reply) => {
+    const { boardId } =
+      request.params as z.infer<typeof boardIdParamsSchema>;
 
     const userId = request.user.userId;
 
-    const access = await getBoardAccess(id, userId);
+    const access = await getBoardAccess(boardId, userId);
 
     if (!access) {
       return reply.code(403).send({
@@ -97,27 +116,25 @@ export async function boardRoutes(app: FastifyInstance) {
     }
 
     return access.board;
+  });
 
-  },);
+  // =========================================================
+  // GET BOARD FULL
+  // GET /api/boards/:boardId/full
+  // =========================================================
 
-  app.get("/:boardId/full", { onRequest: [app.authenticate], }, async (request, reply) => {
-
-    const { boardId } = request.params as {
-      boardId: string;
-    };
-
-    const id = Number(boardId);
-
-    if (!Number.isInteger(id)) {
-      return reply.code(400).send({
-        error: "Invalid board id",
-      });
-    }
+  app.get("/:boardId/full", {
+    onRequest: [app.authenticate],
+    schema: {
+      params: boardIdParamsSchema,
+    },
+  }, async (request, reply) => {
+    const { boardId } =
+      request.params as z.infer<typeof boardIdParamsSchema>;
 
     const userId = request.user.userId;
 
-    const access =
-      await getBoardAccess(id, userId);
+    const access = await getBoardAccess(boardId, userId);
 
     if (!access) {
       return reply.code(403).send({
@@ -127,25 +144,23 @@ export async function boardRoutes(app: FastifyInstance) {
 
     const members = await db.orm.public.BoardMember
       .where({
-        boardId: id,
+        boardId,
       })
       .all();
 
     const columns = await db.orm.public.BoardColumn
       .where({
-        boardId: id,
+        boardId,
       })
       .all();
 
     const columnsWithCards = await Promise.all(
       columns.map(async (column) => {
-
-        const cards =
-          await db.orm.public.Card
-            .where({
-              columnId: column.id,
-            })
-            .all();
+        const cards = await db.orm.public.Card
+          .where({
+            columnId: column.id,
+          })
+          .all();
 
         return {
           ...column,
@@ -159,28 +174,34 @@ export async function boardRoutes(app: FastifyInstance) {
       members,
       columns: columnsWithCards,
     };
+  });
 
+  // =========================================================
+  // UPDATE BOARD
+  // PUT /api/boards/:boardId
+  // Solo owner o admin pueden renombrar el board
+  // =========================================================
+
+  app.put("/:boardId", {
+    onRequest: [app.authenticate],
+    schema: {
+      params: boardIdParamsSchema,
+      body: updateBoardSchema,
     },
-  );
+  }, async (request, reply) => {
+    const { boardId } =
+      request.params as z.infer<typeof boardIdParamsSchema>;
 
-
-  app.put("/:boardId", { onRequest: [app.authenticate], }, async (request, reply) => {
-
-    const { boardId } = request.params as {
-      boardId: string;
-    };
-
-    const id = Number(boardId);
-
-    if (!Number.isInteger(id)) {
-      return reply.code(400).send({
-        error: "Invalid board id",
-      });
-    }
+    const body =
+      request.body as z.infer<typeof updateBoardSchema>;
 
     const userId = request.user.userId;
 
-    const access = await getBoardAccess(id, userId);
+    const access = await requireBoardRole(
+      boardId,
+      userId,
+      ["owner", "admin"],
+    );
 
     if (!access) {
       return reply.code(403).send({
@@ -188,39 +209,39 @@ export async function boardRoutes(app: FastifyInstance) {
       });
     }
 
-    const body = request.body as {
-      name: string;
-    };
-
     const updated = await db.orm.public.Board
       .where({
-        id,
+        id: boardId,
       })
       .update({
         name: body.name,
       });
 
     return updated;
+  });
 
-  },);
+  // =========================================================
+  // DELETE BOARD
+  // DELETE /api/boards/:boardId
+  // Solo el owner puede eliminar el board
+  // =========================================================
 
-  app.delete("/:boardId", { onRequest: [app.authenticate], }, async (request, reply) => {
-
-    const { boardId } = request.params as {
-      boardId: string;
-    };
-
-    const id = Number(boardId);
-
-    if (!Number.isInteger(id)) {
-      return reply.code(400).send({
-        error: "Invalid board id",
-      });
-    }
+  app.delete("/:boardId", {
+    onRequest: [app.authenticate],
+    schema: {
+      params: boardIdParamsSchema,
+    },
+  }, async (request, reply) => {
+    const { boardId } =
+      request.params as z.infer<typeof boardIdParamsSchema>;
 
     const userId = request.user.userId;
 
-    const access = await getBoardAccess(id, userId);
+    const access = await requireBoardRole(
+      boardId,
+      userId,
+      ["owner"],
+    );
 
     if (!access) {
       return reply.code(403).send({
@@ -230,15 +251,13 @@ export async function boardRoutes(app: FastifyInstance) {
 
     await db.orm.public.Board
       .where({
-        id,
+        id: boardId,
       })
       .delete();
 
     return {
       success: true,
     };
-
-    },
-  );
+  });
 
 }
