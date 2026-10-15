@@ -121,6 +121,8 @@ Respuesta esperada:
 # 2. Auth
 
 > El login devuelve un `accessToken` JWT (válido 15 minutos) y guarda un refresh token (válido 7 días) en una cookie `httpOnly`. El refresh rota el token en cada uso.
+>
+> **Rate limiting**: `register` acepta 5 peticiones por minuto y `login` 10 por minuto (por IP). Si se excede, la respuesta es `429 { "error": "Rate limit exceeded, retry in 1 minute" }`.
 
 ## 2.1 Registrar usuario
 
@@ -1048,9 +1050,15 @@ Las operaciones que requieren permisos específicos se validan mediante `getBoar
 
 > Nota sobre el ORM: `.delete()` solo borra una fila (filtro único); para borrado masivo se usa `.deleteAndCount()`.
 
+### Endurecimiento
+
+* Validación de entorno al arrancar (`src/config.ts`): si falta `DATABASE_URL` o `JWT_SECRET`, el proceso falla al iniciar con un mensaje claro.
+* Rate limiting por ruta: `POST /api/auth/register` → 5/min, `POST /api/auth/login` → 10/min (por IP).
+* Errores con formato consistente en toda la API: `{ "error": "..." }` (incluye 404 para rutas inexistentes).
+* Cookies de refresh con `httpOnly`, `SameSite=Strict` y `Path=/api/auth`; `Secure` automático en producción.
+
 ### Siguiente etapa
 
-1. Rate limiting en `/api/auth/login` y `/api/auth/register`.
-2. Tests automatizados (Vitest + `app.inject()`).
-3. Bug pendiente: la FK `boardColumn → board` no tiene `ON DELETE CASCADE` (borrar un board con columnas devuelve 500).
-4. Limpieza de código: quitar la dependencia `bcrypt` sin uso y el plugin `src/plugins/auth.ts` duplicado.
+1. Tests automatizados (Vitest + `app.inject()`).
+2. Bug pendiente: la FK `boardColumn → board` no tiene `ON DELETE CASCADE` (borrar un board con columnas devuelve 500).
+3. Opcional: listar sesiones activas (`GET /api/auth/sessions`) añadiendo `userAgent`/IP al modelo `RefreshToken`.

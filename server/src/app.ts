@@ -1,16 +1,21 @@
-import "dotenv/config";
 import Fastify, { type FastifyError, type FastifyReply, type FastifyRequest, } from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
+import rateLimit from "@fastify/rate-limit";
 import { z } from "zod";
 
+import { env } from "./config.js";
 import { healthRoutes } from "./routes/health.js";
 import { authRoutes } from "./routes/auth.js";
 import { boardRoutes } from "./routes/boards.js";
 import { cardRoutes } from "./routes/cards.js";
 import { columnRoutes } from "./routes/columns.js";
 import { memberRoutes } from "./routes/members.js";
+import {
+  CLEANUP_INTERVAL_MS,
+  deleteExpiredRefreshTokens,
+} from "./utils/refresh-tokens.js";
 
 
 export async function buildApp() {
@@ -25,8 +30,14 @@ export async function buildApp() {
 
   await app.register(cookie);
 
+  // Rate limiting solo donde se configura por ruta
+  // (login y register lo activan con `config.rateLimit`).
+  await app.register(rateLimit, {
+    global: false,
+  });
+
   await app.register(jwt, {
-    secret: process.env.JWT_SECRET!,
+    secret: env.JWT_SECRET,
     sign: {
       expiresIn: "15m",
     },
@@ -77,6 +88,13 @@ export async function buildApp() {
     });
   });
 
+  // Formato consistente también para rutas inexistentes
+  app.setNotFoundHandler((_request, reply) => {
+    return reply.code(404).send({
+      error: "Not found",
+    });
+  });
+
   app.decorate(
     "authenticate",
     async function (
@@ -122,6 +140,29 @@ export async function buildApp() {
 
   await app.register(memberRoutes, {
     prefix: "/api/members",
+  });
+
+  // Limpieza periódica de refresh tokens expirados:
+  // una pasada al arrancar y luego cada CLEANUP_INTERVAL_MS.
+  app.addHook("onReady", async () => {
+    const cleanup = async () => {
+      try {
+        const removed = await deleteExpiredRefreshTokens();
+
+        if (removed > 0) {
+          app.log.info({
+            removed,
+          }, "Refresh tokens expirados eliminados");
+        }
+      } catch (error) {
+        app.log.error(error, "Error limpiando refresh tokens expirados");
+      }
+    };
+
+    await cleanup();
+
+    const timer = setInterval(cleanup, CLEANUP_INTERVAL_MS);
+    timer.unref();
   });
 
   return app;

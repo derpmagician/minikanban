@@ -9,6 +9,8 @@ import {
   clearRefreshCookie,
   consumeRefreshToken,
   issueRefreshToken,
+  revokeAllUserTokens,
+  revokeRefreshToken,
   setRefreshCookie,
 } from "../utils/refresh-tokens.js";
 
@@ -22,6 +24,12 @@ export async function authRoutes(app: FastifyInstance) {
   app.post("/register", {
     schema: {
       body: registerSchema,
+    },
+    config: {
+      rateLimit: {
+        max: 5,
+        timeWindow: "1 minute",
+      },
     },
   }, async (request, reply) => {
 
@@ -105,6 +113,12 @@ export async function authRoutes(app: FastifyInstance) {
   app.post("/login", {
     schema: {
       body: loginSchema,
+    },
+    config: {
+      rateLimit: {
+        max: 10,
+        timeWindow: "1 minute",
+      },
     },
   }, async (request, reply) => {
 
@@ -236,6 +250,52 @@ export async function authRoutes(app: FastifyInstance) {
         createdAt: user.createdAt,
         updatedAt: user.updatedAt,
       },
+    });
+  });
+
+  // =========================================================
+  // LOGOUT
+  // POST /api/auth/logout
+  // Revoca el refresh token de la cookie y la limpia.
+  // Es idempotente: sin cookie también devuelve 200.
+  // =========================================================
+
+  app.post("/logout", async (request, reply) => {
+
+    const token = request.cookies[REFRESH_COOKIE_NAME];
+
+    if (token) {
+      await revokeRefreshToken(token);
+    }
+
+    clearRefreshCookie(reply);
+
+    return reply.send({
+      success: true,
+    });
+  });
+
+  // =========================================================
+  // REVOKE ALL SESSIONS
+  // DELETE /api/auth/sessions
+  // Revoca todos los refresh tokens del usuario.
+  // El access token actual sigue siendo válido hasta
+  // que expire (máximo 15 minutos).
+  // =========================================================
+
+  app.delete("/sessions", {
+    onRequest: [app.authenticate],
+  }, async (request, reply) => {
+
+    const userId = request.user.userId;
+
+    const revoked = await revokeAllUserTokens(userId);
+
+    clearRefreshCookie(reply);
+
+    return reply.send({
+      success: true,
+      revoked,
     });
   });
 }

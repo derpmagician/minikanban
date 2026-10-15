@@ -1,9 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { FastifyReply } from "fastify";
+import { env } from "../config.js";
 import { db } from "../prisma/db.js";
 
 export const REFRESH_COOKIE_NAME = "refreshToken";
 export const REFRESH_TOKEN_TTL_DAYS = 7;
+export const CLEANUP_INTERVAL_MS = 6 * 60 * 60 * 1000;
 const REFRESH_COOKIE_PATH = "/api/auth";
 
 // Nunca se guarda el token en claro: solo su hash SHA-256.
@@ -15,7 +17,7 @@ export function setRefreshCookie(reply: FastifyReply, token: string) {
   reply.setCookie(REFRESH_COOKIE_NAME, token, {
     httpOnly: true,
     sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
+    secure: env.NODE_ENV === "production",
     path: REFRESH_COOKIE_PATH,
     maxAge: REFRESH_TOKEN_TTL_DAYS * 24 * 60 * 60,
   });
@@ -69,4 +71,34 @@ export async function consumeRefreshToken(token: string) {
   }
 
   return stored;
+}
+
+// Revoca un refresh token concreto (logout).
+// Es idempotente: si no existe, no hace nada.
+export async function revokeRefreshToken(token: string) {
+  await db.orm.public.RefreshToken
+    .where({
+      tokenHash: hashToken(token),
+    })
+    .delete();
+}
+
+// Revoca todas las sesiones de un usuario.
+// Devuelve cuántas sesiones se revocaron.
+// OJO: .delete() solo borra una fila; para borrado masivo
+// el ORM usa .deleteAndCount().
+export async function revokeAllUserTokens(userId: number) {
+  return await db.orm.public.RefreshToken
+    .where((token) => token.userId.eq(userId))
+    .deleteAndCount();
+}
+
+// Elimina los refresh tokens ya expirados.
+// Devuelve cuántos eliminó.
+export async function deleteExpiredRefreshTokens() {
+  const now = Temporal.Now.instant();
+
+  return await db.orm.public.RefreshToken
+    .where((token) => token.expiresAt.lt(now))
+    .deleteAndCount();
 }
