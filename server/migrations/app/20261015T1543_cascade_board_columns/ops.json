@@ -1,0 +1,86 @@
+[
+  {
+    "id": "dropConstraint.boardColumn.boardColumn_boardId_fkey",
+    "label": "Drop constraint \"boardColumn_boardId_fkey\" on \"boardColumn\"",
+    "operationClass": "destructive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "boardColumn_boardId_fkey",
+        "table": "boardColumn"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"boardColumn_boardId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "boardColumn_boardId_fkey",
+          "public",
+          "\"public\".\"boardColumn\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "drop constraint \"boardColumn_boardId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"boardColumn\" DROP CONSTRAINT \"boardColumn_boardId_fkey\""
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"boardColumn_boardId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "boardColumn_boardId_fkey",
+          "public",
+          "\"public\".\"boardColumn\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.boardColumn.boardColumn_boardId_fkey",
+    "label": "Add foreign key \"boardColumn_boardId_fkey\" on \"boardColumn\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "boardColumn_boardId_fkey",
+        "table": "boardColumn"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"boardColumn_boardId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "boardColumn_boardId_fkey",
+          "public",
+          "\"public\".\"boardColumn\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"boardColumn_boardId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"boardColumn\"\nADD CONSTRAINT \"boardColumn_boardId_fkey\"\nFOREIGN KEY (\"boardId\")\nREFERENCES \"public\".\"board\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"boardColumn_boardId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "boardColumn_boardId_fkey",
+          "public",
+          "\"public\".\"boardColumn\""
+        ]
+      }
+    ]
+  }
+]

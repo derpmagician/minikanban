@@ -68,7 +68,7 @@ model BoardColumn {
   id           Int               @id @default(autoincrement())
   name         String
   position     Int
-  board        Board             @relation(fields: [boardId], references: [id])
+  board        Board             @relation(fields: [boardId], references: [id], onDelete: Cascade)
   boardId      Int
   cards        Card[]
   createdAt    TimestamptzString @default(now())

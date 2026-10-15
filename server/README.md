@@ -45,14 +45,18 @@ API REST construida con Fastify + Prisma ORM 8 (PostgreSQL).
 
 ### Base de datos y migraciones
 
-- `npx prisma db init` — crea las tablas aplicando las migraciones existentes
+- `npx prisma db init` — crea las tablas aplicando las migraciones existentes (BD vacía)
+- `npx prisma db verify` — comprueba que la BD coincide con el contrato
 - `npx prisma migration status` — muestra el estado de las migraciones
 
 Flujo al cambiar el esquema:
 
 1. Edita `src/prisma/contract.prisma`
 2. `pnpm contract:emit` para regenerar los artefactos del contrato
-3. Crea y aplica la migración correspondiente
+3. Planifica la migración: `npx prisma migration plan --name <nombre>`
+   - Si el planner no puede expresar el cambio (p. ej. modificar el `ON DELETE` de una FK da `MIGRATION.PLANNING_FAILED`), usa `npx prisma migration new --name <nombre>` y escribe las operaciones a mano en `migration.ts`; luego self-emit: `node migrations/app/<dir>/migration.ts`
+4. Revisa el SQL con `npx prisma migration show <dir>`
+5. Aplica con `npx prisma db migrate --advance-ref db`
 
 ## Estructura
 
@@ -380,7 +384,7 @@ Invoke-RestMethod `
 
 ## 3.7 Eliminar un board
 
-> Requiere ser el **owner** del board. Si el board tiene columnas, actualmente devuelve 500: la FK `boardColumn → board` no tiene `ON DELETE CASCADE` en la base de datos (pendiente: añadirlo al contrato y crear migración). Mientras tanto, elimina primero las columnas.
+> Requiere ser el **owner** del board. Al eliminarlo se eliminan en cascada sus columnas (y las cards de esas columnas) y sus membresías.
 
 ```powershell
 Invoke-RestMethod `
@@ -1060,5 +1064,4 @@ Las operaciones que requieren permisos específicos se validan mediante `getBoar
 ### Siguiente etapa
 
 1. Tests automatizados (Vitest + `app.inject()`).
-2. Bug pendiente: la FK `boardColumn → board` no tiene `ON DELETE CASCADE` (borrar un board con columnas devuelve 500).
-3. Opcional: listar sesiones activas (`GET /api/auth/sessions`) añadiendo `userAgent`/IP al modelo `RefreshToken`.
+2. Opcional: listar sesiones activas (`GET /api/auth/sessions`) añadiendo `userAgent`/IP al modelo `RefreshToken`.
