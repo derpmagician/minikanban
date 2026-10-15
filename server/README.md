@@ -231,6 +231,38 @@ $token = $refresh.accessToken
 
 ---
 
+## 2.5 Logout
+
+```powershell
+Invoke-RestMethod `
+  -Method POST `
+  -Uri http://localhost:3000/api/auth/logout `
+  -WebSession $sesion `
+  -ContentType "application/json" `
+  -Body '{}'
+```
+
+> Respuesta: `{ "success": true }`. Revoca el refresh token y limpia la cookie. Es idempotente: sin cookie (o con una inválida) también devuelve 200.
+
+---
+
+## 2.6 Revocar todas las sesiones
+
+Requiere un access token válido. Elimina todos los refresh tokens del usuario, incluida la sesión actual:
+
+```powershell
+Invoke-RestMethod `
+  -Method DELETE `
+  -Uri http://localhost:3000/api/auth/sessions `
+  -Headers @{
+    Authorization = "Bearer $token"
+  }
+```
+
+> Respuesta: `{ "success": true, "revoked": 3 }`. El access token actual sigue siendo válido hasta que expire (máximo 15 minutos), porque el JWT no se puede invalidar por sí solo.
+
+---
+
 # 3. Boards
 
 ## 3.1 Obtener todos los boards sin autenticación
@@ -903,6 +935,8 @@ Invoke-RestMethod `
 | POST   | `/api/auth/register`     | Registrar usuario    |
 | POST   | `/api/auth/login`        | Login + JWT          |
 | POST   | `/api/auth/refresh`      | Renovar access token |
+| POST   | `/api/auth/logout`       | Logout (revoca token de la cookie) |
+| DELETE | `/api/auth/sessions`     | Revocar todas las sesiones |
 | GET    | `/api/boards`            | Listar boards        |
 | POST   | `/api/boards`            | Crear board          |
 | GET    | `/api/boards/:id`        | Obtener board        |
@@ -1007,13 +1041,16 @@ Las operaciones que requieren permisos específicos se validan mediante `getBoar
 * El refresh viaja en una cookie `httpOnly` con `SameSite=Strict` y `Path=/api/auth`.
 * Duración del refresh token → **7 días**.
 * Rotación → cada llamada a `/api/auth/refresh` consume el token anterior y emite uno nuevo; reutilizar un token ya consumido devuelve `401`.
+* Logout → `POST /api/auth/logout` revoca el refresh token de la cookie y la limpia.
+* Revocación total → `DELETE /api/auth/sessions` elimina todos los refresh tokens del usuario.
+* Limpieza de expirados → al arrancar y cada 6 horas (`CLEANUP_INTERVAL_MS` en `src/utils/refresh-tokens.ts`).
 * CORS → `credentials: true` (el cliente debe usar `credentials: "include"`).
+
+> Nota sobre el ORM: `.delete()` solo borra una fila (filtro único); para borrado masivo se usa `.deleteAndCount()`.
 
 ### Siguiente etapa
 
-1. Logout (`POST /api/auth/logout`): eliminar el refresh token de la BD y limpiar la cookie.
-2. Revocación de todas las sesiones de un usuario.
-3. Limpieza periódica de refresh tokens expirados.
-
-
-El siguiente paso del backend es separar claramente **autenticación** (JWT) de **autorización** (propietario/admin/member).
+1. Rate limiting en `/api/auth/login` y `/api/auth/register`.
+2. Tests automatizados (Vitest + `app.inject()`).
+3. Bug pendiente: la FK `boardColumn → board` no tiene `ON DELETE CASCADE` (borrar un board con columnas devuelve 500).
+4. Limpieza de código: quitar la dependencia `bcrypt` sin uso y el plugin `src/plugins/auth.ts` duplicado.
