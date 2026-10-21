@@ -11,6 +11,10 @@ import {
   createBoardSchema,
   updateBoardSchema,
 } from "../schemas/boards.js";
+import {
+  toPublicUser,
+  withPublicUsers,
+} from "../utils/public-user.js";
 
 export async function boardRoutes(app: FastifyInstance) {
 
@@ -170,6 +174,12 @@ export async function boardRoutes(app: FastifyInstance) {
       .orderBy((member) => member.id.asc())
       .all();
 
+    const owner = await db.orm.public.User
+      .where({
+        id: access.board.ownerId,
+      })
+      .first();
+
     const columns = await db.orm.public.BoardColumn
       .where({
         boardId,
@@ -201,7 +211,8 @@ export async function boardRoutes(app: FastifyInstance) {
 
     return {
       ...access.board,
-      members,
+      owner: owner ? toPublicUser(owner) : null,
+      members: await withPublicUsers(members),
       columns: columnsWithCards,
     };
   });

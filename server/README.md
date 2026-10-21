@@ -8,6 +8,16 @@ API REST construida con Fastify + Prisma ORM 8 (PostgreSQL).
 - PostgreSQL 15 o superior
 - pnpm
 
+### PostgreSQL con Docker (alternativa)
+
+Si no tienes PostgreSQL local, desde la raíz del repo:
+
+```bash
+docker compose up -d db
+```
+
+Levanta PostgreSQL 17 en `localhost:5432` con usuario, contraseña y base `kanban` (ajusta `POSTGRES_PORT` si el puerto está ocupado). El `DATABASE_URL` por defecto apunta ahí.
+
 ## Primera ejecución
 
 1. Copia `.env.example` a `.env` y configura tu cadena de conexión:
@@ -41,6 +51,7 @@ API REST construida con Fastify + Prisma ORM 8 (PostgreSQL).
 - `pnpm dev` — arranca el servidor con recarga automática (`tsx watch`)
 - `pnpm build` — compila TypeScript a `dist/`
 - `pnpm start` — ejecuta la build compilada
+- `pnpm seed` — normaliza posiciones y (re)crea los datos de ejemplo
 - `pnpm contract:emit` — regenera `contract.json` y `contract.d.ts` tras editar el contrato
 
 ### Base de datos y migraciones
@@ -57,6 +68,20 @@ Flujo al cambiar el esquema:
    - Si el planner no puede expresar el cambio (p. ej. modificar el `ON DELETE` de una FK da `MIGRATION.PLANNING_FAILED`), usa `npx prisma migration new --name <nombre>` y escribe las operaciones a mano en `migration.ts`; luego self-emit: `node migrations/app/<dir>/migration.ts`
 4. Revisa el SQL con `npx prisma migration show <dir>`
 5. Aplica con `npx prisma db migrate --advance-ref db`
+
+### Datos de ejemplo
+
+`pnpm seed` (o `tsx scripts/seed.ts`) hace dos cosas:
+
+1. **Normaliza posiciones** de columnas y cards de todos los boards (0..n-1, sin huecos ni duplicados).
+2. **(Re)crea el tablero de ejemplo** con contenido variado (prioridades, fechas límite y asignaciones):
+
+| Credencial | Valor |
+| ---------- | ----- |
+| Email      | `demo@minikanban.dev` |
+| Password   | `Demo1234` |
+
+El board "Kanban Demo" tiene 4 columnas (Backlog, En Progreso, En Revisión, Terminado) y 8 cards, más un miembro de ejemplo. Es repetible: cada ejecución borra y recrea el board demo; el resto de datos solo se normaliza.
 
 ## Estructura
 
@@ -407,6 +432,8 @@ Respuesta esperada:
 
 # 4. Columns
 
+> Las columnas se devuelven siempre ordenadas por `position` (0-based). Al crear, actualizar o eliminar una columna, el servidor re-secuencia las posiciones del board: no quedan huecos ni duplicados. Si `position` excede el total, la columna va al final.
+
 ## 4.1 Crear una columna
 
 ```powershell
@@ -512,6 +539,8 @@ Respuesta:
 ---
 
 # 5. Cards
+
+> Las cards se devuelven siempre ordenadas por `position` (0-based, por columna). Al crear, mover o eliminar una card, el servidor reordena la columna: compacta huecos y desplaza al resto. Si `position` excede el total, la card va al final.
 
 ## 5.1 Crear una card
 
@@ -998,6 +1027,13 @@ Reglas principales:
 * `role` → `admin` o `member`.
 * `dueDate` → ISO 8601 (`2026-10-15T23:59:59Z` o con offset, p. ej. `2026-10-15T23:59:59+02:00`).
 * `:boardId`, `:columnId`, `:cardId`, `:memberId` → enteros positivos.
+
+### Orden y posiciones
+
+* Columnas (por board) y cards (por columna) usan `position` 0-based.
+* Todos los listados (`/columns/board/:id`, `/cards/column/:id`, `/boards/:id/full`) devuelven ya ordenados por `position` (desempate por `id`), así que el cliente no necesita ordenar.
+* Crear, mover, actualizar o eliminar re-secuencia las posiciones dentro de una transacción (`rewriteCardPositions` / `rewriteColumnPositions` en `src/utils/positions.ts`): sin huecos ni duplicados.
+* `PATCH /cards/:id/move` acepta `{ columnId, position }`; si la columna es la misma recoloca la card, si cambia compacta el origen y abre hueco en el destino.
 
 ### Boards
 

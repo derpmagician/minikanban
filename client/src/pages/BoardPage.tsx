@@ -6,6 +6,7 @@ import { AppHeader } from "../components/AppHeader";
 import { BoardColumnView } from "../components/BoardColumnView";
 import { CardDialog } from "../components/CardDialog";
 import { ConfirmDialog } from "../components/ConfirmDialog";
+import { MembersDialog } from "../components/MembersDialog";
 import { NameDialog } from "../components/NameDialog";
 import {
   ArrowLeftIcon,
@@ -40,6 +41,7 @@ export function BoardPage() {
   const [dragged, setDragged] = useState<DraggedCard | null>(null);
   const [addingColumn, setAddingColumn] = useState(false);
   const [renamingBoard, setRenamingBoard] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [deletingBoard, setDeletingBoard] = useState(false);
   const [editingColumn, setEditingColumn] = useState<BoardColumn | null>(null);
   const [deletingColumn, setDeletingColumn] = useState<BoardColumn | null>(null);
@@ -246,6 +248,15 @@ export function BoardPage() {
             </div>
 
             <div className="board-header__actions">
+              <button
+                type="button"
+                className="button button--ghost button--small"
+                onClick={() => setMembersOpen(true)}
+              >
+                <UsersIcon size={15} />
+                Miembros
+              </button>
+
               {canManage ? (
                 <button
                   type="button"
@@ -378,7 +389,20 @@ export function BoardPage() {
           boardId={boardId}
           column={cardDialog.column}
           card={cardDialog.card}
+          canDelete={canManage}
           onClose={() => setCardDialog(null)}
+        />
+      ) : null}
+
+      {membersOpen && board ? (
+        <MembersDialog
+          boardId={boardId}
+          owner={board.owner}
+          members={board.members}
+          currentUserId={user?.id}
+          isOwner={Boolean(isOwner)}
+          canManage={canManage}
+          onClose={() => setMembersOpen(false)}
         />
       ) : null}
 

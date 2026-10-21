@@ -17,10 +17,17 @@ type CardDialogProps = {
   boardId: number;
   column: BoardColumn;
   card?: Card;
+  canDelete: boolean;
   onClose: () => void;
 };
 
-export function CardDialog({ boardId, column, card, onClose }: CardDialogProps) {
+export function CardDialog({
+  boardId,
+  column,
+  card,
+  canDelete,
+  onClose,
+}: CardDialogProps) {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState(card?.title ?? "");
   const [description, setDescription] = useState(card?.description ?? "");
@@ -142,7 +149,7 @@ export function CardDialog({ boardId, column, card, onClose }: CardDialogProps) 
 
           <div className="modal__actions modal__actions--split">
             <div>
-              {card ? (
+              {card && canDelete ? (
                 <button
                   type="button"
                   className="button button--danger-ghost"
@@ -170,7 +177,7 @@ export function CardDialog({ boardId, column, card, onClose }: CardDialogProps) 
         </form>
       </Modal>
 
-      {confirmingDelete && card ? (
+      {confirmingDelete && card && canDelete ? (
         <ConfirmDialog
           title="Eliminar card"
           message={`La card "${card.title}" se eliminará definitivamente.`}

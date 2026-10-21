@@ -10,6 +10,8 @@ export type AuthUser = {
   updatedAt?: string;
 };
 
+export type PublicUser = Pick<AuthUser, "id" | "email" | "username" | "name">;
+
 export type AuthResponse = {
   accessToken: string;
   user: AuthUser;
@@ -35,6 +37,14 @@ export type BoardMember = {
   role: Exclude<BoardRole, "owner">;
   userId: number;
   boardId: number;
+  user: PublicUser | null;
+};
+
+export type AddMemberInput = {
+  boardId: number;
+  email?: string;
+  username?: string;
+  role?: Exclude<BoardRole, "owner">;
 };
 
 export type Card = {
@@ -61,6 +71,7 @@ export type BoardColumn = {
 };
 
 export type FullBoard = Board & {
+  owner: PublicUser | null;
   members: BoardMember[];
   columns: BoardColumn[];
 };

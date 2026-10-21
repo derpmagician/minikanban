@@ -1,7 +1,9 @@
 import type {
+  AddMemberInput,
   AuthResponse,
   AuthUser,
   Board,
+  BoardMember,
   CreateCardInput,
   FullBoard,
   RegisterInput,
@@ -221,6 +223,32 @@ export const api = {
 
     remove(boardId: number) {
       return request<{ success: boolean }>(`/api/boards/${boardId}`, {
+        method: "DELETE",
+      });
+    },
+  },
+
+  members: {
+    list(boardId: number) {
+      return request<BoardMember[]>(`/api/members/board/${boardId}`);
+    },
+
+    add(input: AddMemberInput) {
+      return request<BoardMember>("/api/members", {
+        method: "POST",
+        body: JSON.stringify(input),
+      });
+    },
+
+    updateRole(memberId: number, role: BoardMember["role"]) {
+      return request<BoardMember>(`/api/members/${memberId}/role`, {
+        method: "PATCH",
+        body: JSON.stringify({ role }),
+      });
+    },
+
+    remove(memberId: number) {
+      return request<{ success: boolean }>(`/api/members/${memberId}`, {
         method: "DELETE",
       });
     },

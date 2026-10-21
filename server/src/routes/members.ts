@@ -12,6 +12,10 @@ import {
   memberIdParamsSchema,
   updateMemberRoleSchema,
 } from "../schemas/members.js";
+import {
+  toPublicUser,
+  withPublicUsers,
+} from "../utils/public-user.js";
 
 export async function memberRoutes(app: FastifyInstance) {
 
@@ -53,21 +57,37 @@ export async function memberRoutes(app: FastifyInstance) {
       });
     }
 
-    // El owner ya tiene acceso por ser propietario:
-    // no debe existir también como BoardMember.
-    if (body.userId === access.board.ownerId) {
-      return reply.code(400).send({
-        error: "Board owner cannot be added as a member",
+    const requestedRole = body.role ?? "member";
+
+    // Solo el owner puede nombrar administradores
+    if (requestedRole === "admin" && access.role !== "owner") {
+      return reply.code(403).send({
+        error: "Only the board owner can add administrators",
       });
     }
 
-    // 2. Verificar que el usuario que queremos
-    //    agregar exista
-    const user = await db.orm.public.User
-      .where({
-        id: body.userId,
-      })
-      .first();
+    // 2. Buscar al usuario por id, email o username
+    let user;
+
+    if (body.userId !== undefined) {
+      user = await db.orm.public.User
+        .where({
+          id: body.userId,
+        })
+        .first();
+    } else if (body.email !== undefined) {
+      user = await db.orm.public.User
+        .where({
+          email: body.email,
+        })
+        .first();
+    } else if (body.username !== undefined) {
+      user = await db.orm.public.User
+        .where({
+          username: body.username,
+        })
+        .first();
+    }
 
     if (!user) {
       return reply.code(404).send({
@@ -75,10 +95,18 @@ export async function memberRoutes(app: FastifyInstance) {
       });
     }
 
+    // El owner ya tiene acceso por ser propietario:
+    // no debe existir también como BoardMember.
+    if (user.id === access.board.ownerId) {
+      return reply.code(400).send({
+        error: "Board owner cannot be added as a member",
+      });
+    }
+
     // 3. Evitar duplicados
     const existing = await db.orm.public.BoardMember
       .where({
-        userId: body.userId,
+        userId: user.id,
         boardId: body.boardId,
       })
       .first();
@@ -91,12 +119,15 @@ export async function memberRoutes(app: FastifyInstance) {
 
     // 4. Crear miembro
     const member = await db.orm.public.BoardMember.create({
-      userId: body.userId,
+      userId: user.id,
       boardId: body.boardId,
-      role: body.role ?? "member",
+      role: requestedRole,
     });
 
-    return reply.code(201).send(member);
+    return reply.code(201).send({
+      ...member,
+      user: toPublicUser(user),
+    });
   });
 
   // =========================================================
@@ -139,7 +170,7 @@ export async function memberRoutes(app: FastifyInstance) {
       .orderBy((member) => member.id.asc())
       .all();
 
-    return members;
+    return await withPublicUsers(members);
   });
 
   // =========================================================
@@ -199,7 +230,16 @@ export async function memberRoutes(app: FastifyInstance) {
         role: body.role,
       });
 
-    return updated;
+    const user = await db.orm.public.User
+      .where({
+        id: member.userId,
+      })
+      .first();
+
+    return {
+      ...updated,
+      user: user ? toPublicUser(user) : null,
+    };
   });
 
   // =========================================================
