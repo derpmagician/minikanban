@@ -46,7 +46,7 @@ Aplicación de tableros Kanban con autenticación, columnas, tarjetas (cards), m
 | Servidor | Node.js, TypeScript, Fastify 5, Prisma ORM 8 (PostgreSQL), Zod, JWT + refresh tokens, Argon2 |
 | Cliente | React 19, TypeScript, Vite, React Router, TanStack Query, Zustand, drag & drop nativo (HTML5) |
 | Base de datos | PostgreSQL 17 (Docker Compose) |
-| Tooling | pnpm/npm workspaces, `concurrently`, ESLint |
+| Tooling | npm workspaces, `concurrently`, ESLint |
 
 ## Estructura
 
@@ -69,8 +69,7 @@ Aplicación de tableros Kanban con autenticación, columnas, tarjetas (cards), m
 
 ## Requisitos
 
-- Node.js 24 LTS o superior
-- pnpm (recomendado) o npm
+- Node.js 24 LTS o superior (incluye npm)
 - Docker, o PostgreSQL 15+ instalado localmente (el proyecto funciona de ambas formas)
 
 ## Puesta en marcha
@@ -80,7 +79,7 @@ En ambos modos Docker solo se encarga de PostgreSQL; el cliente y el servidor si
 1. **Instala las dependencias** desde la raíz (workspaces):
 
    ```bash
-   pnpm install
+   npm install
    ```
 
 2. **Prepara PostgreSQL** eligiendo una de las dos opciones:
@@ -133,7 +132,7 @@ En ambos modos Docker solo se encarga de PostgreSQL; el cliente y el servidor si
 5. **(Opcional) Carga los datos de ejemplo**:
 
    ```bash
-   pnpm --filter server seed
+   npm run seed --workspace=server
    ```
 
    | Credencial | Valor |
@@ -144,7 +143,7 @@ En ambos modos Docker solo se encarga de PostgreSQL; el cliente y el servidor si
 6. **Arranca cliente y servidor** desde la raíz:
 
    ```bash
-   pnpm dev
+   npm run dev
    ```
 
    - Cliente: <http://localhost:5173>
@@ -157,16 +156,14 @@ Desde la raíz:
 
 | Comando | Descripción |
 | --- | --- |
-| `pnpm dev` | Arranca cliente y servidor en modo desarrollo |
-| `pnpm --filter server dev` | Solo el servidor (`tsx watch`) |
-| `pnpm --filter client dev` | Solo el cliente (Vite) |
-| `pnpm --filter server build` | Compila el servidor a `server/dist` |
-| `pnpm --filter server start` | Ejecuta el servidor compilado |
-| `pnpm --filter server seed` | Normaliza posiciones y recrea el tablero demo |
-| `pnpm --filter client build` | Build de producción del cliente |
-| `pnpm --filter client lint` | Lint del cliente |
-
-> Con npm los comandos equivalentes son `npm run dev` y `npm run dev --workspace=server|client`.
+| `npm run dev` | Arranca cliente y servidor en modo desarrollo |
+| `npm run dev --workspace=server` | Solo el servidor (`tsx watch`) |
+| `npm run dev --workspace=client` | Solo el cliente (Vite) |
+| `npm run build --workspace=server` | Compila el servidor a `server/dist` |
+| `npm run start --workspace=server` | Ejecuta el servidor compilado |
+| `npm run seed --workspace=server` | Normaliza posiciones y recrea el tablero demo |
+| `npm run build --workspace=client` | Build de producción del cliente |
+| `npm run lint --workspace=client` | Lint del cliente |
 
 ## API
 
@@ -203,7 +200,7 @@ El contrato de datos vive en `server/src/prisma/contract.prisma`. Al modificarlo
 
 ```bash
 cd server
-pnpm contract:emit
+npm run contract:emit
 npx prisma migration plan --name <nombre>
 npx prisma migration show <carpeta>
 npx prisma db migrate --advance-ref db

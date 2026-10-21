@@ -1,75 +1,34 @@
-# React + TypeScript + Vite
+# MiniKanban — cliente
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+SPA en React 19 + TypeScript + Vite para gestionar tableros Kanban. Consume la API del servidor y usa React Router, TanStack Query y Zustand.
 
-Currently, two official plugins are available:
+## Requisitos
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 24 LTS o superior (incluye npm)
+- El servidor de MiniKanban en marcha
 
-## React Compiler
+## Desarrollo
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Desde la raíz del repositorio:
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```bash
+npm install
+npm run dev --workspace=client
 ```
 
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
+La aplicación queda en <http://localhost:5173>. Por defecto apunta a `http://localhost:3000`; para usar otra API define `VITE_API_URL` en un archivo `.env` dentro de `client/`:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
+```env
+VITE_API_URL="http://localhost:3000"
 ```
+
+También puedes ejecutar los comandos desde `client/` con `npm run dev`, `npm run build` y `npm run preview`.
+
+## Funcionalidad
+
+- Login, registro y sesión persistente con refresh token.
+- Listado, creación y gestión de tableros.
+- Columnas y cards con drag & drop nativo, prioridades y fechas límite.
+- Panel de miembros para invitar por email o usuario, cambiar roles y quitar accesos.
+
+Consulta el [README principal](../README.md) para la puesta en marcha completa, la API y los permisos.

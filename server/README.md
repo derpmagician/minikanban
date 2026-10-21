@@ -6,7 +6,7 @@ API REST construida con Fastify + Prisma ORM 8 (PostgreSQL).
 
 - Node.js 24 LTS o superior
 - PostgreSQL 15 o superior
-- pnpm
+- npm
 
 ### PostgreSQL con Docker (alternativa)
 
@@ -20,39 +20,41 @@ Levanta PostgreSQL 17 en `localhost:5432` con usuario, contraseña y base `kanba
 
 ## Primera ejecución
 
-1. Copia `.env.example` a `.env` y configura tu cadena de conexión:
+1. Desde `server/`, copia `.env.example` a `.env` y configura tu cadena de conexión:
 
    ```env
    DATABASE_URL="postgresql://usuario:password@localhost:5432/minikanban"
    ```
 
-2. Instala dependencias:
+2. Instala dependencias desde la raíz del repositorio:
 
    ```bash
-   pnpm install
+   npm install
    ```
 
-3. Crea las tablas en la base de datos:
+3. Desde `server/`, crea las tablas en la base de datos:
 
    ```bash
    npx prisma db init
    ```
 
-4. Arranca el servidor de desarrollo:
+4. Desde `server/`, arranca el servidor de desarrollo:
 
    ```bash
-   pnpm dev
+   npm run dev
    ```
 
    El servidor escucha en `http://localhost:3000` y acepta peticiones CORS desde `http://localhost:5173`.
 
 ## Scripts disponibles
 
-- `pnpm dev` — arranca el servidor con recarga automática (`tsx watch`)
-- `pnpm build` — compila TypeScript a `dist/`
-- `pnpm start` — ejecuta la build compilada
-- `pnpm seed` — normaliza posiciones y (re)crea los datos de ejemplo
-- `pnpm contract:emit` — regenera `contract.json` y `contract.d.ts` tras editar el contrato
+Desde `server/`:
+
+- `npm run dev` — arranca el servidor con recarga automática (`tsx watch`)
+- `npm run build` — compila TypeScript a `dist/`
+- `npm run start` — ejecuta la build compilada
+- `npm run seed` — normaliza posiciones y (re)crea los datos de ejemplo
+- `npm run contract:emit` — regenera `contract.json` y `contract.d.ts` tras editar el contrato
 
 ### Base de datos y migraciones
 
@@ -63,7 +65,7 @@ Levanta PostgreSQL 17 en `localhost:5432` con usuario, contraseña y base `kanba
 Flujo al cambiar el esquema:
 
 1. Edita `src/prisma/contract.prisma`
-2. `pnpm contract:emit` para regenerar los artefactos del contrato
+2. `npm run contract:emit` para regenerar los artefactos del contrato
 3. Planifica la migración: `npx prisma migration plan --name <nombre>`
    - Si el planner no puede expresar el cambio (p. ej. modificar el `ON DELETE` de una FK da `MIGRATION.PLANNING_FAILED`), usa `npx prisma migration new --name <nombre>` y escribe las operaciones a mano en `migration.ts`; luego self-emit: `node migrations/app/<dir>/migration.ts`
 4. Revisa el SQL con `npx prisma migration show <dir>`
@@ -71,7 +73,7 @@ Flujo al cambiar el esquema:
 
 ### Datos de ejemplo
 
-`pnpm seed` (o `tsx scripts/seed.ts`) hace dos cosas:
+`npm run seed` (o `tsx scripts/seed.ts`) hace dos cosas:
 
 1. **Normaliza posiciones** de columnas y cards de todos los boards (0..n-1, sin huecos ni duplicados).
 2. **(Re)crea el tablero de ejemplo** con contenido variado (prioridades, fechas límite y asignaciones):
