@@ -8,7 +8,7 @@ import {
   dateInputToIso,
   dateInputValue,
 } from "../lib/format";
-import type { BoardColumn, Card, CardPriority } from "../lib/types";
+import type { BoardColumn, Card, CardPriority, PublicUser } from "../lib/types";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { TrashIcon } from "./Icons";
 import { Modal } from "./Modal";
@@ -18,6 +18,7 @@ type CardDialogProps = {
   column: BoardColumn;
   card?: Card;
   canDelete: boolean;
+  assignees: PublicUser[];
   onClose: () => void;
 };
 
@@ -26,6 +27,7 @@ export function CardDialog({
   column,
   card,
   canDelete,
+  assignees,
   onClose,
 }: CardDialogProps) {
   const queryClient = useQueryClient();
@@ -33,6 +35,7 @@ export function CardDialog({
   const [description, setDescription] = useState(card?.description ?? "");
   const [priority, setPriority] = useState<CardPriority>(card?.priority ?? "medium");
   const [dueDate, setDueDate] = useState(dateInputValue(card?.dueDate));
+  const [assigneeId, setAssigneeId] = useState<number | null>(card?.assigneeId ?? null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const invalidateBoard = () =>
@@ -45,6 +48,7 @@ export function CardDialog({
         description: description.trim() ? description.trim() : null,
         priority,
         dueDate: dateInputToIso(dueDate),
+        assigneeId,
       };
 
       if (card) {
@@ -144,6 +148,23 @@ export function CardDialog({
               />
             </label>
           </div>
+
+          <label className="field">
+            <span>Responsable</span>
+            <select
+              value={assigneeId ?? ""}
+              onChange={(event) =>
+                setAssigneeId(event.target.value ? Number(event.target.value) : null)
+              }
+            >
+              <option value="">Sin asignar</option>
+              {assignees.map((assignee) => (
+                <option key={assignee.id} value={assignee.id}>
+                  {assignee.name?.trim() || assignee.username || assignee.email}
+                </option>
+              ))}
+            </select>
+          </label>
 
           {error ? <p className="form-error">{getErrorMessage(error)}</p> : null}
 

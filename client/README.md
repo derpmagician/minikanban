@@ -28,7 +28,7 @@ También puedes ejecutar los comandos desde `client/` con `npm run dev`, `npm ru
 
 - Login, registro y sesión persistente con refresh token.
 - Listado, creación y gestión de tableros.
-- Columnas y cards con drag & drop nativo, prioridades y fechas límite.
+- Columnas y cards con drag & drop nativo, prioridades, fechas límite y responsable.
 - Panel de miembros para invitar por email o usuario, cambiar roles y quitar accesos.
 
 Consulta el [README principal](../README.md) para la puesta en marcha completa, la API y los permisos.

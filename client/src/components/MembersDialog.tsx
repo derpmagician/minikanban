@@ -92,6 +92,7 @@ export function MembersDialog({
     mutationFn: (input: AddMemberInput) => api.members.add(input),
     onSuccess: async () => {
       setIdentifier("");
+      setInviteRole("member");
       setInviteError(null);
       setSuccess("Miembro añadido al tablero.");
       await invalidateBoard();

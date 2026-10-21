@@ -67,6 +67,27 @@ export function BoardPage() {
       }));
   }, [board]);
 
+  const assignees = useMemo(() => {
+    if (!board) {
+      return [];
+    }
+
+    const users = [
+      ...(board.owner ? [board.owner] : []),
+      ...board.members.flatMap((member) => (member.user ? [member.user] : [])),
+    ];
+    const seen = new Set<number>();
+
+    return users.filter((user) => {
+      if (seen.has(user.id)) {
+        return false;
+      }
+
+      seen.add(user.id);
+      return true;
+    });
+  }, [board]);
+
   const invalidateBoard = () =>
     queryClient.invalidateQueries({ queryKey: ["board", boardId] });
 
@@ -315,7 +336,8 @@ export function BoardPage() {
                   key={column.id}
                   column={column}
                   accent={COLUMN_COLORS[index % COLUMN_COLORS.length]!}
-                  canManage={canManage}
+                  canDeleteColumn={canManage}
+                  assignees={assignees}
                   draggingCardId={dragged?.cardId ?? null}
                   onAddCard={() => setCardDialog({ column })}
                   onEditCard={(card) => handleEditCard(column, card)}
@@ -390,6 +412,7 @@ export function BoardPage() {
           column={cardDialog.column}
           card={cardDialog.card}
           canDelete={canManage}
+          assignees={assignees}
           onClose={() => setCardDialog(null)}
         />
       ) : null}

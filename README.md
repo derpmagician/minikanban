@@ -2,6 +2,10 @@
 
 Aplicación de tableros Kanban con autenticación, columnas, tarjetas (cards), miembros y roles por tablero. El repositorio está organizado como un monorepo con un **servidor** (API REST) y un **cliente** (SPA).
 
+![Tablero Kanban Demo](docs/screenshot.png)
+
+*Tablero de ejemplo con columnas, cards, prioridades, fechas límite y responsables.*
+
 ## Funcionalidad
 
 ### Cuenta y acceso
@@ -20,8 +24,8 @@ Aplicación de tableros Kanban con autenticación, columnas, tarjetas (cards), m
 
 ### Columnas y cards
 
-- Crear, renombrar y eliminar columnas (eliminar requiere rol `owner` o `admin`).
-- Crear y editar cards con título, descripción, prioridad (baja, media, alta) y fecha límite.
+- Crear y renombrar columnas (cualquier miembro); eliminar requiere rol `owner` o `admin`.
+- Crear y editar cards con título, descripción, prioridad (baja, media, alta), fecha límite y responsable entre los miembros del tablero.
 - Arrastrar y soltar con la API nativa de HTML5 para reordenar cards dentro de una columna o moverlas entre columnas; el orden se persiste en el servidor.
 - Indicadores visuales de prioridad y fecha límite, resaltando las vencidas.
 - Confirmación antes de eliminar tableros, columnas y cards.
@@ -30,7 +34,7 @@ Aplicación de tableros Kanban con autenticación, columnas, tarjetas (cards), m
 
 - Roles por tablero: `owner`, `admin` y `member`.
 - Panel de miembros en el tablero: lista al propietario y a los miembros, invita por email o nombre de usuario, permite cambiar el rol (solo `owner`) y quitar miembros (`owner` y `admin`).
-- La API admite asignar una card a un miembro; la selección de responsable desde la UI está pendiente.
+- Las cards muestran el responsable asignado y permiten cambiarlo desde el formulario de la card.
 
 ### Experiencia de uso
 

@@ -5,13 +5,15 @@ import {
   formatShortDate,
   isOverdue,
 } from "../lib/format";
-import type { BoardColumn, Card } from "../lib/types";
+import type { BoardColumn, Card, PublicUser } from "../lib/types";
+import { Avatar } from "./Avatar";
 import { CalendarIcon, PencilIcon, PlusIcon, TrashIcon } from "./Icons";
 
 type BoardColumnViewProps = {
   column: BoardColumn;
   accent: string;
-  canManage: boolean;
+  canDeleteColumn: boolean;
+  assignees: PublicUser[];
   draggingCardId: number | null;
   onAddCard: () => void;
   onEditCard: (card: Card) => void;
@@ -27,7 +29,8 @@ type DropTarget = number | "end" | null;
 export function BoardColumnView({
   column,
   accent,
-  canManage,
+  canDeleteColumn,
+  assignees,
   draggingCardId,
   onAddCard,
   onEditCard,
@@ -70,17 +73,17 @@ export function BoardColumnView({
           <span className="kanban-column__count">{column.cards.length}</span>
         </div>
 
-        {canManage ? (
-          <div className="kanban-column__actions">
-            <button
-              type="button"
-              className="icon-button icon-button--small"
-              onClick={onEditColumn}
-              aria-label={`Renombrar columna ${column.name}`}
-              title="Renombrar columna"
-            >
-              <PencilIcon size={15} />
-            </button>
+        <div className="kanban-column__actions">
+          <button
+            type="button"
+            className="icon-button icon-button--small"
+            onClick={onEditColumn}
+            aria-label={`Renombrar columna ${column.name}`}
+            title="Renombrar columna"
+          >
+            <PencilIcon size={15} />
+          </button>
+          {canDeleteColumn ? (
             <button
               type="button"
               className="icon-button icon-button--small icon-button--danger"
@@ -90,8 +93,8 @@ export function BoardColumnView({
             >
               <TrashIcon size={15} />
             </button>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </header>
 
       <div
@@ -120,6 +123,13 @@ export function BoardColumnView({
         {column.cards.map((card) => {
           const overdue = isOverdue(card.dueDate);
           const isDragging = draggingCardId === card.id;
+          const assignee =
+            card.assigneeId === null
+              ? null
+              : assignees.find((user) => user.id === card.assigneeId) ?? null;
+          const assigneeName = assignee
+            ? assignee.name?.trim() || assignee.username || assignee.email
+            : null;
 
           return (
             <article
@@ -167,6 +177,15 @@ export function BoardColumnView({
 
               {card.description ? (
                 <p className="kanban-card__description">{card.description}</p>
+              ) : null}
+
+              {assignee && assigneeName ? (
+                <div className="kanban-card__footer">
+                  <span className="kanban-card__assignee">
+                    <Avatar name={assigneeName} id={assignee.id} size={21} />
+                    <span>{assigneeName}</span>
+                  </span>
+                </div>
               ) : null}
             </article>
           );
