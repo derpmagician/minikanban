@@ -1,7 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import type { z } from "zod";
 import { db } from "../prisma/db.js";
-import { getBoardAccess, requireBoardRole } from "../utils/board-access.js";
+import {
+  getBoardAccess,
+  getBoardById,
+  requireBoardRole,
+} from "../utils/board-access.js";
 import {
   boardIdParamsSchema,
   createBoardSchema,
@@ -49,6 +53,7 @@ export async function boardRoutes(app: FastifyInstance) {
       .where({
         ownerId: userId,
       })
+      .orderBy((board) => board.createdAt.asc())
       .all();
 
     // 2. Membresías del usuario
@@ -107,6 +112,14 @@ export async function boardRoutes(app: FastifyInstance) {
 
     const userId = request.user.userId;
 
+    const board = await getBoardById(boardId);
+
+    if (!board) {
+      return reply.code(404).send({
+        error: "Board not found",
+      });
+    }
+
     const access = await getBoardAccess(boardId, userId);
 
     if (!access) {
@@ -134,6 +147,14 @@ export async function boardRoutes(app: FastifyInstance) {
 
     const userId = request.user.userId;
 
+    const board = await getBoardById(boardId);
+
+    if (!board) {
+      return reply.code(404).send({
+        error: "Board not found",
+      });
+    }
+
     const access = await getBoardAccess(boardId, userId);
 
     if (!access) {
@@ -146,12 +167,17 @@ export async function boardRoutes(app: FastifyInstance) {
       .where({
         boardId,
       })
+      .orderBy((member) => member.id.asc())
       .all();
 
     const columns = await db.orm.public.BoardColumn
       .where({
         boardId,
       })
+      .orderBy([
+        (column) => column.position.asc(),
+        (column) => column.id.asc(),
+      ])
       .all();
 
     const columnsWithCards = await Promise.all(
@@ -160,6 +186,10 @@ export async function boardRoutes(app: FastifyInstance) {
           .where({
             columnId: column.id,
           })
+          .orderBy([
+            (card) => card.position.asc(),
+            (card) => card.id.asc(),
+          ])
           .all();
 
         return {
@@ -196,6 +226,14 @@ export async function boardRoutes(app: FastifyInstance) {
       request.body as z.infer<typeof updateBoardSchema>;
 
     const userId = request.user.userId;
+
+    const board = await getBoardById(boardId);
+
+    if (!board) {
+      return reply.code(404).send({
+        error: "Board not found",
+      });
+    }
 
     const access = await requireBoardRole(
       boardId,
@@ -236,6 +274,14 @@ export async function boardRoutes(app: FastifyInstance) {
       request.params as z.infer<typeof boardIdParamsSchema>;
 
     const userId = request.user.userId;
+
+    const board = await getBoardById(boardId);
+
+    if (!board) {
+      return reply.code(404).send({
+        error: "Board not found",
+      });
+    }
 
     const access = await requireBoardRole(
       boardId,

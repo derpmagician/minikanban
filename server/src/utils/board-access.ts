@@ -5,6 +5,14 @@ export type BoardRole =
   | "admin"
   | "member";
 
+export async function getBoardById(boardId: number) {
+  return await db.orm.public.Board
+		.where({
+			id: boardId,
+		})
+		.first();
+}
+
 export async function getBoardAccess( boardId: number, userId: number, ) {
   const board = await db.orm.public.Board
 		.where({

@@ -3,6 +3,8 @@ import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
 import jwt from "@fastify/jwt";
 import rateLimit from "@fastify/rate-limit";
+import swagger from "@fastify/swagger";
+import swaggerUi from "@fastify/swagger-ui";
 import { z } from "zod";
 
 import { env } from "./config.js";
@@ -24,11 +26,46 @@ export async function buildApp() {
   });
 
   await app.register(cors, {
-    origin: "http://localhost:5173",
+    origin: env.CORS_ORIGINS,
     credentials: true,
+    methods: ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   });
 
   await app.register(cookie);
+
+  // Documentación OpenAPI en /docs.
+  // El transform convierte los schemas Zod a JSON Schema solo
+  // para el spec: la validación sigue haciéndola Zod.
+  await app.register(swagger, {
+    openapi: {
+      info: {
+        title: "MiniKanban API",
+        description:
+          "API del kanban: autenticación JWT con refresh tokens, boards, columnas, cards y miembros.",
+        version: "1.0.0",
+      },
+    },
+    transform: ({ schema, url }) => ({
+      // /api/boards/ -> /api/boards (el router acepta ambas)
+      url: url.length > 1 ? url.replace(/\/$/, "") : url,
+      schema: {
+        ...schema,
+        ...(schema?.body instanceof z.ZodType
+          ? { body: z.toJSONSchema(schema.body, { target: "openapi-3.0" }) }
+          : {}),
+        ...(schema?.params instanceof z.ZodType
+          ? { params: z.toJSONSchema(schema.params, { target: "openapi-3.0" }) }
+          : {}),
+        ...(schema?.querystring instanceof z.ZodType
+          ? { querystring: z.toJSONSchema(schema.querystring, { target: "openapi-3.0" }) }
+          : {}),
+      },
+    }),
+  });
+
+  await app.register(swaggerUi, {
+    routePrefix: "/docs",
+  });
 
   // Rate limiting solo donde se configura por ruta
   // (login y register lo activan con `config.rateLimit`).
@@ -144,6 +181,8 @@ export async function buildApp() {
 
   // Limpieza periódica de refresh tokens expirados:
   // una pasada al arrancar y luego cada CLEANUP_INTERVAL_MS.
+  let cleanupTimer: ReturnType<typeof setInterval> | undefined;
+
   app.addHook("onReady", async () => {
     const cleanup = async () => {
       try {
@@ -161,8 +200,14 @@ export async function buildApp() {
 
     await cleanup();
 
-    const timer = setInterval(cleanup, CLEANUP_INTERVAL_MS);
-    timer.unref();
+    cleanupTimer = setInterval(cleanup, CLEANUP_INTERVAL_MS);
+    cleanupTimer.unref();
+  });
+
+  app.addHook("onClose", async () => {
+    if (cleanupTimer) {
+      clearInterval(cleanupTimer);
+    }
   });
 
   return app;

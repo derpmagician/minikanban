@@ -47,7 +47,8 @@ export async function authRoutes(app: FastifyInstance) {
       .toLowerCase();
 
     const normalizedUsername = username
-      .trim();
+      .trim()
+      .toLowerCase();
 
     // 3. Comprobar email existente
     const existingEmail =

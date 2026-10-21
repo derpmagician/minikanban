@@ -1,7 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import type { z } from "zod";
 import { db } from "../prisma/db.js";
-import { getBoardAccess, requireBoardAdmin } from "../utils/board-access.js";
+import {
+  getBoardAccess,
+  getBoardById,
+  requireBoardAdmin,
+} from "../utils/board-access.js";
 import { boardIdParamsSchema } from "../schemas/boards.js";
 import {
   addMemberSchema,
@@ -28,6 +32,14 @@ export async function memberRoutes(app: FastifyInstance) {
 
     const currentUserId = request.user.userId;
 
+    const board = await getBoardById(body.boardId);
+
+    if (!board) {
+      return reply.code(404).send({
+        error: "Board not found",
+      });
+    }
+
     // 1. Verificar que el usuario actual
     //    sea owner o admin del board
     const access = await requireBoardAdmin(
@@ -38,6 +50,14 @@ export async function memberRoutes(app: FastifyInstance) {
     if (!access) {
       return reply.code(403).send({
         error: "Forbidden",
+      });
+    }
+
+    // El owner ya tiene acceso por ser propietario:
+    // no debe existir también como BoardMember.
+    if (body.userId === access.board.ownerId) {
+      return reply.code(400).send({
+        error: "Board owner cannot be added as a member",
       });
     }
 
@@ -96,6 +116,14 @@ export async function memberRoutes(app: FastifyInstance) {
 
     const userId = request.user.userId;
 
+    const board = await getBoardById(boardId);
+
+    if (!board) {
+      return reply.code(404).send({
+        error: "Board not found",
+      });
+    }
+
     const access = await getBoardAccess(boardId, userId);
 
     if (!access) {
@@ -108,6 +136,7 @@ export async function memberRoutes(app: FastifyInstance) {
       .where({
         boardId,
       })
+      .orderBy((member) => member.id.asc())
       .all();
 
     return members;

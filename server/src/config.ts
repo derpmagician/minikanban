@@ -17,4 +17,8 @@ export const env = {
   DATABASE_URL: requiredEnv("DATABASE_URL"),
   JWT_SECRET: requiredEnv("JWT_SECRET"),
   NODE_ENV: process.env.NODE_ENV ?? "development",
+  CORS_ORIGINS: (process.env.CORS_ORIGINS ?? "http://localhost:5173")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
 } as const;

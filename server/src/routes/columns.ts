@@ -1,13 +1,22 @@
 import type { FastifyInstance } from "fastify";
 import type { z } from "zod";
 import { db } from "../prisma/db.js";
-import { getBoardAccess, requireBoardAdmin } from "../utils/board-access.js";
+import {
+  getBoardAccess,
+  getBoardById,
+  requireBoardAdmin,
+} from "../utils/board-access.js";
 import { boardIdParamsSchema } from "../schemas/boards.js";
 import {
   columnIdParamsSchema,
   createColumnSchema,
   updateColumnSchema,
 } from "../schemas/columns.js";
+import {
+  clampIndex,
+  rewriteColumnPositions,
+  sortByPosition,
+} from "../utils/positions.js";
 
 export async function columnRoutes(app: FastifyInstance) {
 
@@ -27,6 +36,14 @@ export async function columnRoutes(app: FastifyInstance) {
 
     const userId = request.user.userId;
 
+    const board = await getBoardById(body.boardId);
+
+    if (!board) {
+      return reply.code(404).send({
+        error: "Board not found",
+      });
+    }
+
     const access = await getBoardAccess(
       body.boardId,
       userId,
@@ -38,10 +55,34 @@ export async function columnRoutes(app: FastifyInstance) {
       });
     }
 
-    const column = await db.orm.public.BoardColumn.create({
-      name: body.name,
-      position: body.position,
-      boardId: body.boardId,
+    // Insertar la columna en la posición pedida (limitada al total)
+    // y desplazar el resto del board para dejar hueco.
+    const column = await db.transaction(async (tx) => {
+      const columns = sortByPosition(
+        await tx.orm.public.BoardColumn
+          .where({
+            boardId: body.boardId,
+          })
+          .all(),
+      );
+
+      const position = clampIndex(
+        body.position,
+        columns.length,
+      );
+
+      await rewriteColumnPositions(
+        tx,
+        columns,
+        position,
+        1,
+      );
+
+      return await tx.orm.public.BoardColumn.create({
+        name: body.name,
+        position,
+        boardId: body.boardId,
+      });
     });
 
     return reply.code(201).send(column);
@@ -63,6 +104,14 @@ export async function columnRoutes(app: FastifyInstance) {
 
     const userId = request.user.userId;
 
+    const board = await getBoardById(boardId);
+
+    if (!board) {
+      return reply.code(404).send({
+        error: "Board not found",
+      });
+    }
+
     const access = await getBoardAccess(boardId, userId);
 
     if (!access) {
@@ -75,6 +124,10 @@ export async function columnRoutes(app: FastifyInstance) {
       .where({
         boardId,
       })
+      .orderBy([
+        (column) => column.position.asc(),
+        (column) => column.id.asc(),
+      ])
       .all();
 
     return columns;
@@ -123,14 +176,33 @@ export async function columnRoutes(app: FastifyInstance) {
       });
     }
 
-    const updated = await db.orm.public.BoardColumn
-      .where({
-        id: columnId,
-      })
-      .update({
-        name: body.name,
-        position: body.position,
-      });
+    // Renombrar y, si cambia la posición, reordenar el board.
+    const updated = await db.transaction(async (tx) => {
+      const columns = sortByPosition(
+        await tx.orm.public.BoardColumn
+          .where({
+            boardId: column.boardId,
+          })
+          .all(),
+      ).filter((row) => row.id !== column.id);
+
+      const position = clampIndex(
+        body.position,
+        columns.length,
+      );
+
+      columns.splice(position, 0, column);
+
+      await rewriteColumnPositions(tx, columns);
+
+      return await tx.orm.public.BoardColumn
+        .where({
+          id: columnId,
+        })
+        .update({
+          name: body.name,
+        });
+    });
 
     return updated;
   });
@@ -175,11 +247,35 @@ export async function columnRoutes(app: FastifyInstance) {
       });
     }
 
-    await db.orm.public.BoardColumn
-      .where({
-        id: columnId,
-      })
-      .delete();
+    // Eliminar y compactar las posiciones restantes del board
+    await db.transaction(async (tx) => {
+      const columns = sortByPosition(
+        await tx.orm.public.BoardColumn
+          .where({
+            boardId: column.boardId,
+          })
+          .all(),
+      );
+
+      const index = columns.findIndex(
+        (row) => row.id === column.id,
+      );
+
+      await tx.orm.public.BoardColumn
+        .where({
+          id: columnId,
+        })
+        .delete();
+
+      if (index !== -1) {
+        await rewriteColumnPositions(
+          tx,
+          columns,
+          index + 1,
+          -1,
+        );
+      }
+    });
 
     return {
       success: true,

@@ -15,11 +15,17 @@ export const createCardSchema = z.object({
 });
 
 export const updateCardSchema = z.object({
-  title: z.string().trim().min(1).max(200),
+  title: z.string().trim().min(1).max(200).optional(),
   description: z.string().max(5000).nullish(),
   priority: z.enum(["low", "medium", "high"]).optional(),
   dueDate: z.iso.datetime({ offset: true }).nullish(),
-});
+  assigneeId: z.number().int().positive().nullish(),
+}).refine(
+  (data) => Object.values(data).some((value) => value !== undefined),
+  {
+    message: "At least one field must be provided",
+  },
+);
 
 export const moveCardSchema = z.object({
   columnId: z.number().int().positive(),

@@ -9,6 +9,11 @@ import {
   moveCardSchema,
   updateCardSchema,
 } from "../schemas/cards.js";
+import {
+  clampIndex,
+  rewriteCardPositions,
+  sortByPosition,
+} from "../utils/positions.js";
 
 export async function cardRoutes(app: FastifyInstance) {
 
@@ -51,16 +56,54 @@ export async function cardRoutes(app: FastifyInstance) {
       });
     }
 
-    const card = await db.orm.public.Card.create({
-      title: body.title,
-      description: body.description ?? null,
-      position: body.position,
-      priority: body.priority ?? "medium",
-      columnId: body.columnId,
-      assigneeId: body.assigneeId ?? null,
-      dueDate: body.dueDate
-        ? Temporal.Instant.from(body.dueDate)
-        : null,
+    // El usuario asignado debe pertenecer al board.
+    if (body.assigneeId != null) {
+      const assigneeAccess = await getBoardAccess(
+        column.boardId,
+        body.assigneeId,
+      );
+
+      if (!assigneeAccess) {
+        return reply.code(400).send({
+          error: "Assignee is not a board member",
+        });
+      }
+    }
+
+    // Insertar la card en la posición pedida (limitada al total)
+    // y desplazar el resto de la columna para dejar hueco.
+    const card = await db.transaction(async (tx) => {
+      const cards = sortByPosition(
+        await tx.orm.public.Card
+          .where({
+            columnId: body.columnId,
+          })
+          .all(),
+      );
+
+      const position = clampIndex(
+        body.position,
+        cards.length,
+      );
+
+      await rewriteCardPositions(
+        tx,
+        cards,
+        position,
+        1,
+      );
+
+      return await tx.orm.public.Card.create({
+        title: body.title,
+        description: body.description ?? null,
+        position,
+        priority: body.priority ?? "medium",
+        columnId: body.columnId,
+        assigneeId: body.assigneeId ?? null,
+        dueDate: body.dueDate
+          ? Temporal.Instant.from(body.dueDate)
+          : null,
+      });
     });
 
     return reply.code(201).send(card);
@@ -109,6 +152,10 @@ export async function cardRoutes(app: FastifyInstance) {
       .where({
         columnId,
       })
+      .orderBy([
+        (card) => card.position.asc(),
+        (card) => card.id.asc(),
+      ])
       .all();
 
     return cards;
@@ -190,14 +237,63 @@ export async function cardRoutes(app: FastifyInstance) {
       });
     }
 
-    const updated = await db.orm.public.Card
-      .where({
-        id: cardId,
-      })
-      .update({
-        columnId: body.columnId,
-        position: body.position,
-      });
+    // Reordenar: si la columna es la misma se recoloca la card
+    // dentro de la lista; si cambia, se compacta el origen y se
+    // abre hueco en el destino. Todo dentro de una transacción.
+    const updated = await db.transaction(async (tx) => {
+      const sourceCards = sortByPosition(
+        await tx.orm.public.Card
+          .where({
+            columnId: currentColumn.id,
+          })
+          .all(),
+      ).filter((row) => row.id !== card.id);
+
+      if (targetColumn.id === currentColumn.id) {
+        const position = clampIndex(
+          body.position,
+          sourceCards.length,
+        );
+
+        sourceCards.splice(position, 0, card);
+
+        await rewriteCardPositions(tx, sourceCards);
+      } else {
+        const targetCards = sortByPosition(
+          await tx.orm.public.Card
+            .where({
+              columnId: targetColumn.id,
+            })
+            .all(),
+        );
+
+        const position = clampIndex(
+          body.position,
+          targetCards.length,
+        );
+
+        targetCards.splice(position, 0, card);
+
+        await rewriteCardPositions(tx, sourceCards);
+        await rewriteCardPositions(tx, targetCards);
+
+        await tx.orm.public.Card
+          .where({
+            id: card.id,
+          })
+          .update({
+            columnId: targetColumn.id,
+          });
+      }
+
+      const moved = await tx.orm.public.Card
+        .where({
+          id: card.id,
+        })
+        .first();
+
+      return moved ?? card;
+    });
 
     return updated;
   });
@@ -257,18 +353,54 @@ export async function cardRoutes(app: FastifyInstance) {
       });
     }
 
+    const changes: {
+      title?: string;
+      description?: string | null;
+      priority?: "low" | "medium" | "high";
+      dueDate?: Temporal.Instant | null;
+      assigneeId?: number | null;
+    } = {};
+
+    if (body.title !== undefined) {
+      changes.title = body.title;
+    }
+
+    if (body.description !== undefined) {
+      changes.description = body.description ?? null;
+    }
+
+    if (body.priority !== undefined) {
+      changes.priority = body.priority;
+    }
+
+    if (body.dueDate !== undefined) {
+      changes.dueDate = body.dueDate
+        ? Temporal.Instant.from(body.dueDate)
+        : null;
+    }
+
+    if (body.assigneeId !== undefined) {
+      if (body.assigneeId !== null) {
+        const assigneeAccess = await getBoardAccess(
+          column.boardId,
+          body.assigneeId,
+        );
+
+        if (!assigneeAccess) {
+          return reply.code(400).send({
+            error: "Assignee is not a board member",
+          });
+        }
+      }
+
+      changes.assigneeId = body.assigneeId;
+    }
+
     const updated = await db.orm.public.Card
       .where({
         id: cardId,
       })
-      .update({
-        title: body.title,
-        description: body.description ?? null,
-        priority: body.priority ?? card.priority,
-        dueDate: body.dueDate
-          ? Temporal.Instant.from(body.dueDate)
-          : null,
-      });
+      .update(changes);
 
     return updated;
   });
@@ -325,11 +457,35 @@ export async function cardRoutes(app: FastifyInstance) {
       });
     }
 
-    await db.orm.public.Card
-      .where({
-        id: cardId,
-      })
-      .delete();
+    // Eliminar y compactar las posiciones restantes
+    await db.transaction(async (tx) => {
+      const cards = sortByPosition(
+        await tx.orm.public.Card
+          .where({
+            columnId: column.id,
+          })
+          .all(),
+      );
+
+      const index = cards.findIndex(
+        (row) => row.id === card.id,
+      );
+
+      await tx.orm.public.Card
+        .where({
+          id: cardId,
+        })
+        .delete();
+
+      if (index !== -1) {
+        await rewriteCardPositions(
+          tx,
+          cards,
+          index + 1,
+          -1,
+        );
+      }
+    });
 
     return {
       success: true,
